@@ -1,0 +1,6 @@
+[submodule "sew-prf-genesis-solidity/lib/openzeppelin-contracts"]
+	path = sew-prf-genesis-solidity/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "sew-prf-genesis-solidity/lib/forge-std"]
+	path = sew-prf-genesis-solidity/lib/forge-std
+	url = https://github.com/vectorized/forge-std
