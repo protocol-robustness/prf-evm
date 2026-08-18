@@ -1,1 +1,1 @@
-test_AdmitStatement_TamperedPublicValues_Reverts|test_AdmitStatement_WrongProgramVKey_Reverts
+test_AdmitStatement_Success|test_ExtractStatementRoot_RealFixture

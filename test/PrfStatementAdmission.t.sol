@@ -16,7 +16,8 @@ import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
 ///         SP1 proof -> EVM verification -> statement admission.
 ///
 ///         Uses MockSP1Verifier configured with the real vkey and public values
-///         from the realized-statement SP1 guest.
+///         from the realized-statement SP1 guest (mock Groth16 proof).
+///         Public values are a fixed bytes32 (EVM projection), not JSON.
 contract PrfStatementAdmissionTest is Test {
     bytes32 internal constant PROTOCOL_ROOT =
         0xd77429dd50bd7fe18d5f41d55e53ccbd4c67d18c4f00b266f86dbaede01f9343;
@@ -29,14 +30,17 @@ contract PrfStatementAdmissionTest is Test {
 
     bytes32 internal constant VERIFIER_HASH = keccak256("SP1Groth16Verifier");
 
+    // From realized-statement-proof-fixture.json (regenerated with bytes32 PV).
     bytes32 internal constant FIXTURE_VKEY =
-        0x00bf7b7a6e763c20322fbe237c9e2939f943df111ddbfa9c57f522f1add55ce2;
+        0x00b9325e81961e4b6dfbe6fa7806796a15c018116225c85f5ef0811afc331d3f;
     bytes32 internal constant FIXTURE_ELF_SHA256 =
-        0x8500a9db5819733eb06129290b1ac4a54ca149e3a5a2ed7444b34b7b26f59b64;
+        0xdeed502019f2cc920aa92e36e15d429c8ace7406cce925195709dc353b3e2495;
     bytes32 internal constant FIXTURE_STATEMENT_ROOT =
         0xc22333a16df1c1efa352e9daab42ccbd78f4a1d7530ee3ed3cf7527ba62cbd81;
 
-    bytes internal constant FIXTURE_PUBLIC_VALUES = hex"7b22616c6c2d616374697665223a747275652c22616c6c6f636174696f6e2d636f6e746578742d726f6f74223a2235313535646534646535386635356331343337643532643833316364336337343765656133306538343535633361373934356463373135613639303761306235222c22616c6c6f636174696f6e2d706f6c6963792d726f6f74223a2237393833393964373530343735353339626235313836353731323131303463336334646465613933346362306436316330343436393966363637316236346362222c226661696c2d616374696f6e2d706f6c6963792d726f6f74223a22313066663932336530353137633265316466626262323038393436666530383334613839393232373365626439383363326332636435393635386330386537222c227265616c697a65642d726573756c74732d726f6f74223a2266306261396465383361363931363030633733646530646464653466386431616236373362613439343261376333343063373832613561333530323738623833222c22726571756573742d7365742d726f6f74223a2239633439356533376539383434303335626435323733646163333036383262666239393239336331663338303033346136393130376538373635303736313134222c22726573756c742f737461747573223a2270617373696e67222c22726f756e642d6c6966656379636c652d726f6f74223a2231653764343137393363653432346633396532623261666338336462623563353238636464393661373436643061343839343966316462353834356234613461222c22736368656d612d76657273696f6e223a227265616c697a65642d616c6c6f636174696f6e2d73746174656d656e742e7631222c2273746174656d656e742d726f6f74223a2263323233333361313664663163316566613335326539646161623432636362643738663461316437353330656533656433636637353237626136326362643831227d";
+    // Public values are a fixed bytes32 (EVM projection), not UTF-8 JSON.
+    bytes internal constant FIXTURE_PUBLIC_VALUES =
+        hex"c22333a16df1c1efa352e9daab42ccbd78f4a1d7530ee3ed3cf7527ba62cbd81";
 
     bytes32 internal constant WRONG_STATEMENT_ROOT =
         0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
@@ -52,7 +56,8 @@ contract PrfStatementAdmissionTest is Test {
     bytes32 internal PV_DIGEST;
 
     function setUp() public {
-        PV_DIGEST = sha256(FIXTURE_PUBLIC_VALUES);
+        // Public values digest: sha256(bytes32) = sha256(32-byte root)
+        PV_DIGEST = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
 
         authority = new SewGovernanceAuthorityAdapter(
             PROTOCOL_ROOT,
@@ -125,12 +130,14 @@ contract PrfStatementAdmissionTest is Test {
 
     /// @notice Negative: wrong statement root → caught by try/catch → ProofVerificationFailed.
     function test_AdmitStatement_WrongStatementRoot_Reverts() public {
+        bytes32 wrongPvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
+
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             WRONG_STATEMENT_ROOT,
             "",
             FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            wrongPvDigest
         );
     }
 
@@ -173,20 +180,22 @@ contract PrfStatementAdmissionTest is Test {
     function test_AdmitStatement_InactiveVerifier_Reverts() public {
         registry.deactivateVerifier(0);
 
+        bytes32 pvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.NoVerifiersRegistered.selector));
         admission.admitStatement(
             FIXTURE_STATEMENT_ROOT,
             "",
             FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            pvDigest
         );
     }
 
     /// @notice Negative: tampered public values → ProofVerificationFailed
     ///         (mock SP1 verifier commitment mismatch is caught by try/catch).
     function test_AdmitStatement_TamperedPublicValues_Reverts() public {
-        bytes memory tampered = hex"0000deadbeef";
-        bytes32 tamperedDigest = sha256(tampered);
+        bytes memory tampered = new bytes(32);
+        tampered[0] = 0xde;
+        bytes32 tamperedDigest = sha256(abi.encodePacked(tampered));
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
@@ -209,10 +218,10 @@ contract PrfStatementAdmissionTest is Test {
     }
 
     /// @notice Negative: wrong program vkey in adapter.
-    ///         The wrong adapter pins wrongVkey; the mock was configured for FIXTURE_VKEY.
-    ///         When admitStatement calls the wrong adapter, the mock verifier commitment
-    ///         fails (keccak256(proof || wrongVkey || pubValues) ≠ commitment), and
-    ///         the try/catch converts it to ProofVerificationFailed.
+    ///         The wrong adapter pins wrongVkey; the mock was configured for
+    ///         FIXTURE_VKEY. When admitStatement calls the wrong adapter, the
+    ///         mock verifier commitment fails, and the try/catch converts it
+    ///         to ProofVerificationFailed.
     function test_AdmitStatement_WrongProgramVKey_Reverts() public {
         bytes32 wrongVkey = keccak256("wrong-program-vkey");
 
