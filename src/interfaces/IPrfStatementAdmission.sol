@@ -7,9 +7,11 @@ interface IPrfStatementAdmission is IERC165 {
     function protocolGenesisRoot() external view returns (bytes32);
     function chainInstanceGenesisRoot() external view returns (bytes32);
     function expectedConfigurationRoot() external view returns (bytes32);
+    function expectedConfigurationEpoch() external view returns (uint64);
     function admittedCount() external view returns (uint256);
 
     function admitStatement(
+        bytes32 verifierId,
         bytes32 statementRoot,
         bytes calldata proof,
         bytes calldata publicValues,

@@ -8,19 +8,13 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
 import {IPrfConfigurationExecutor} from "./interfaces/IPrfConfigurationExecutor.sol";
 import {ISewGovernanceAuthority} from "./interfaces/ISewGovernanceAuthority.sol";
+import {IPrfVerifierRegistry} from "./interfaces/IPrfVerifierRegistry.sol";
 
 /// @title SewConfigurationExecutor
-/// @notice Applies expected-parent PRF configuration-root transitions authorised by SEW governance.
-/// @dev
-/// - Anyone may relay an already authorised transition.
-/// - Authority is checked against the exact parent/new root + epoch + target.
-/// - Each decision root is consumable once.
-/// - A stale parent cannot be applied.
-///
-/// Target modes:
-/// 0: targetRoot must equal this chain-instance-genesis-root.
-/// 1: targetRoot is a sorted-pair keccak Merkle root containing this instance.
-///    Leaf = keccak256(abi.encode(TARGET_SET_LEAF_DOMAIN, chainInstanceGenesisRoot)).
+/// @notice Applies expected-parent PRF configuration-root transitions authorised
+///         by SEW governance. Also tracks the active verifier-registry root R,
+///         binding configuration root C to verifier-registry root R through
+///         governance authorization.
 contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
     uint8 public constant TARGET_DIRECT = 0;
     uint8 public constant TARGET_SET = 1;
@@ -30,9 +24,11 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
 
     IPrfChainInstanceGenesis public immutable genesis;
     ISewGovernanceAuthority public immutable authority;
+    IPrfVerifierRegistry public immutable verifierRegistry;
 
     bytes32 public immutable override chainInstanceGenesisRoot;
     bytes32 public override currentConfigurationRoot;
+    bytes32 public override currentVerifierRegistryRoot;
     uint64 public override currentEpoch;
 
     mapping(bytes32 decisionRoot => bool) public override consumedDecisionRoots;
@@ -41,6 +37,8 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
         bytes32 indexed decisionRoot,
         bytes32 indexed previousConfigurationRoot,
         bytes32 indexed newConfigurationRoot,
+        bytes32 previousVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch,
         uint8 targetMode,
         bytes32 targetRoot
@@ -50,18 +48,20 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
     error WrongExecutionChain(uint256 expected, uint256 actual);
     error ProtocolGenesisMismatch(bytes32 expected, bytes32 actual);
     error AuthorityAdapterMismatch(address expected, address actual);
-    error InitialConfigurationMismatch(bytes32 expected, bytes32 actual);
     error ZeroRoot();
     error InvalidTargetMode(uint8 targetMode);
     error DirectTargetMismatch(bytes32 expected, bytes32 actual);
     error TargetSetMembershipInvalid(bytes32 targetRoot, bytes32 instanceRoot);
     error InvalidNextEpoch(uint64 expected, uint64 actual);
+    error NewRegistryNotSealed(bytes32 registryRoot);
     error DecisionAlreadyConsumed(bytes32 decisionRoot);
     error DecisionNotAuthorised(bytes32 decisionRoot);
 
     constructor(
         IPrfChainInstanceGenesis genesis_,
-        ISewGovernanceAuthority authority_
+        ISewGovernanceAuthority authority_,
+        IPrfVerifierRegistry verifierRegistry_,
+        bytes32 initialVerifierRegistryRoot_
     ) {
         if (!genesis_.isSealedState()) revert GenesisNotSealed();
         if (genesis_.executionChainId() != block.chainid) {
@@ -82,11 +82,14 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
 
         bytes32 initialRoot = genesis_.initialConfigurationRoot();
         if (initialRoot == bytes32(0)) revert ZeroRoot();
+        if (initialVerifierRegistryRoot_ == bytes32(0)) revert ZeroRoot();
 
         genesis = genesis_;
         authority = authority_;
+        verifierRegistry = verifierRegistry_;
         chainInstanceGenesisRoot = genesis_.chainInstanceGenesisRoot();
         currentConfigurationRoot = initialRoot;
+        currentVerifierRegistryRoot = initialVerifierRegistryRoot_;
         currentEpoch = 0;
     }
 
@@ -94,6 +97,7 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
     function applyConfiguration(
         bytes32 decisionRoot,
         bytes32 newConfigurationRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 nextEpoch,
         uint8 targetMode,
         bytes32 targetRoot,
@@ -102,23 +106,38 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
         if (genesis.executionChainId() != block.chainid) {
             revert WrongExecutionChain(genesis.executionChainId(), block.chainid);
         }
-        if (
-            decisionRoot == bytes32(0) ||
-            newConfigurationRoot == bytes32(0) ||
-            targetRoot == bytes32(0)
-        ) revert ZeroRoot();
+        if (decisionRoot == bytes32(0)) revert ZeroRoot();
+        if (newConfigurationRoot == bytes32(0)) revert ZeroRoot();
+        if (newVerifierRegistryRoot == bytes32(0)) revert ZeroRoot();
+        if (targetRoot == bytes32(0)) revert ZeroRoot();
         if (consumedDecisionRoots[decisionRoot]) {
             revert DecisionAlreadyConsumed(decisionRoot);
         }
-
-        uint64 expectedEpoch = currentEpoch + 1;
-        if (nextEpoch != expectedEpoch) {
-            revert InvalidNextEpoch(expectedEpoch, nextEpoch);
+        if (nextEpoch != currentEpoch + 1) {
+            revert InvalidNextEpoch(uint64(currentEpoch) + 1, nextEpoch);
         }
-
         _verifyTarget(targetMode, targetRoot, targetProof);
+        _checkAuthorization(
+            decisionRoot,
+            newConfigurationRoot,
+            newVerifierRegistryRoot,
+            nextEpoch,
+            targetMode,
+            targetRoot
+        );
+        _commitState(decisionRoot, newConfigurationRoot, newVerifierRegistryRoot, nextEpoch, targetMode, targetRoot);
+    }
 
+    function _checkAuthorization(
+        bytes32 decisionRoot,
+        bytes32 newConfig,
+        bytes32 newRegistry,
+        uint64 nextEpoch,
+        uint8 targetMode,
+        bytes32 targetRoot
+    ) private view {
         bytes32 parentRoot = currentConfigurationRoot;
+        bytes32 parentRegistry = currentVerifierRegistryRoot;
 
         if (
             !authority.isAuthorisedDecision(
@@ -126,22 +145,42 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
                 targetMode,
                 targetRoot,
                 parentRoot,
-                newConfigurationRoot,
+                newConfig,
+                parentRegistry,
+                newRegistry,
                 nextEpoch
             )
         ) {
             revert DecisionNotAuthorised(decisionRoot);
         }
 
-        // Effects before any external work; this function has no external calls after this point.
+        if (!verifierRegistry.isSealed(newRegistry)) {
+            revert NewRegistryNotSealed(newRegistry);
+        }
+    }
+
+    function _commitState(
+        bytes32 decisionRoot,
+        bytes32 newConfig,
+        bytes32 newRegistry,
+        uint64 nextEpoch,
+        uint8 targetMode,
+        bytes32 targetRoot
+    ) private {
+        bytes32 parentRoot = currentConfigurationRoot;
+        bytes32 parentRegistry = currentVerifierRegistryRoot;
+
         consumedDecisionRoots[decisionRoot] = true;
-        currentConfigurationRoot = newConfigurationRoot;
+        currentConfigurationRoot = newConfig;
+        currentVerifierRegistryRoot = newRegistry;
         currentEpoch = nextEpoch;
 
         emit ConfigurationApplied(
             decisionRoot,
             parentRoot,
-            newConfigurationRoot,
+            newConfig,
+            parentRegistry,
+            newRegistry,
             nextEpoch,
             targetMode,
             targetRoot
@@ -171,10 +210,7 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
                 abi.encode(TARGET_SET_LEAF_DOMAIN, chainInstanceGenesisRoot)
             );
             if (!MerkleProof.verifyCalldata(targetProof, targetRoot, leaf)) {
-                revert TargetSetMembershipInvalid(
-                    targetRoot,
-                    chainInstanceGenesisRoot
-                );
+                revert TargetSetMembershipInvalid(targetRoot, chainInstanceGenesisRoot);
             }
             return;
         }

@@ -4,3 +4,7 @@
 [submodule "sew-prf-genesis-solidity/lib/forge-std"]
 	path = sew-prf-genesis-solidity/lib/forge-std
 	url = https://github.com/vectorized/forge-std
+[submodule "lib/sp1-contracts"]
+	path = lib/sp1-contracts
+	url = https://github.com/succinctlabs/sp1-contracts
+	branch = main

@@ -17,6 +17,10 @@ import {
 ///
 /// A SEW governance proposal should execute a GovGovernor `onlyGovernance` compatibility
 /// function, which then calls this adapter as `governor`.
+///
+/// The DecisionAuthorization struct now binds parent/new verifier-registry roots
+/// alongside the parent/new configuration roots, preventing a relayer from decoupling
+/// configuration root C from verifier-registry root R.
 contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
     uint8 public constant TARGET_DIRECT = 0;
     uint8 public constant TARGET_SET = 1;
@@ -36,6 +40,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
         bytes32 indexed targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     );
 
@@ -83,13 +89,17 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
         bytes32 targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     ) external override onlyGovernor {
         if (
             decisionRoot == bytes32(0) ||
             targetRoot == bytes32(0) ||
             parentConfigurationRoot == bytes32(0) ||
-            newConfigurationRoot == bytes32(0)
+            newConfigurationRoot == bytes32(0) ||
+            parentVerifierRegistryRoot == bytes32(0) ||
+            newVerifierRegistryRoot == bytes32(0)
         ) revert ZeroRoot();
         if (targetMode > TARGET_SET) revert InvalidTargetMode(targetMode);
         if (epoch == 0) revert EpochMustBePositive();
@@ -102,6 +112,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
             targetRoot: targetRoot,
             parentConfigurationRoot: parentConfigurationRoot,
             newConfigurationRoot: newConfigurationRoot,
+            parentVerifierRegistryRoot: parentVerifierRegistryRoot,
+            newVerifierRegistryRoot: newVerifierRegistryRoot,
             epoch: epoch,
             exists: true,
             revoked: false
@@ -113,6 +125,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
             targetRoot,
             parentConfigurationRoot,
             newConfigurationRoot,
+            parentVerifierRegistryRoot,
+            newVerifierRegistryRoot,
             epoch
         );
     }
@@ -157,6 +171,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
         bytes32 targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     ) public view override returns (bool) {
         DecisionAuthorization storage authorization = _authorizations[decisionRoot];
@@ -168,6 +184,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
             authorization.targetRoot == targetRoot &&
             authorization.parentConfigurationRoot == parentConfigurationRoot &&
             authorization.newConfigurationRoot == newConfigurationRoot &&
+            authorization.parentVerifierRegistryRoot == parentVerifierRegistryRoot &&
+            authorization.newVerifierRegistryRoot == newVerifierRegistryRoot &&
             authorization.epoch == epoch;
     }
 
@@ -176,7 +194,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
     /// `hash` is the PRF/SEW decision root.
     /// `signature` is an ABI-encoded authorization envelope:
     /// `(uint8 targetMode, bytes32 targetRoot, bytes32 parentConfigurationRoot,
-    ///   bytes32 newConfigurationRoot, uint64 epoch)`.
+    ///   bytes32 newConfigurationRoot, bytes32 parentVerifierRegistryRoot,
+    ///   bytes32 newVerifierRegistryRoot, uint64 epoch)`.
     ///
     /// This intentionally represents contract/governance authority rather than an EOA signature.
     function isValidSignature(bytes32 hash, bytes calldata signature)
@@ -185,16 +204,18 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
         override
         returns (bytes4)
     {
-        // Five static ABI words.
-        if (signature.length != 160) return ERC1271_INVALID;
+        // Seven static ABI words = 7 * 32 = 224 bytes.
+        if (signature.length != 224) return ERC1271_INVALID;
 
         (
             uint8 targetMode,
             bytes32 targetRoot,
             bytes32 parentConfigurationRoot,
             bytes32 newConfigurationRoot,
+            bytes32 parentVerifierRegistryRoot,
+            bytes32 newVerifierRegistryRoot,
             uint64 epoch
-        ) = abi.decode(signature, (uint8, bytes32, bytes32, bytes32, uint64));
+        ) = abi.decode(signature, (uint8, bytes32, bytes32, bytes32, bytes32, bytes32, uint64));
 
         return
             isAuthorisedDecision(
@@ -203,6 +224,8 @@ contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
                 targetRoot,
                 parentConfigurationRoot,
                 newConfigurationRoot,
+                parentVerifierRegistryRoot,
+                newVerifierRegistryRoot,
                 epoch
             )
                 ? IERC1271.isValidSignature.selector

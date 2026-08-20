@@ -7,12 +7,18 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 /// @title ISewGovernanceAuthority
 /// @notice Read-only compatibility surface from SEW governance into PRF execution.
 /// @dev targetMode: 0 = one chain-instance root, 1 = Merkle root of permitted chain-instance roots.
+///
+///     The DecisionAuthorization struct now also binds the verifier-registry roots
+///     so that a governance authorisation cannot decouple configuration root C
+///     from verifier-registry root R during a configuration transition.
 interface ISewGovernanceAuthority is IERC165, IERC1271 {
     struct DecisionAuthorization {
         uint8 targetMode;
         bytes32 targetRoot;
         bytes32 parentConfigurationRoot;
         bytes32 newConfigurationRoot;
+        bytes32 parentVerifierRegistryRoot;
+        bytes32 newVerifierRegistryRoot;
         uint64 epoch;
         bool exists;
         bool revoked;
@@ -33,6 +39,8 @@ interface ISewGovernanceAuthority is IERC165, IERC1271 {
         bytes32 targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     ) external view returns (bool);
 }
@@ -47,6 +55,8 @@ interface ISewGovernanceAuthorityAdmin is ISewGovernanceAuthority {
         bytes32 targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     ) external;
 

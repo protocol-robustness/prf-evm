@@ -119,3 +119,99 @@ Block number, timestamp, and submitter are event observations and do not change 
 `PrfChainInstanceGenesis.sealer` is ordinary deployment storage, not an immutable
 embedded in runtime bytecode. It is cleared on successful sealing. Therefore the
 deployer/sealer does not indirectly enter `control-plane/runtime-code-keccak256`.
+
+## 7. Verifier registry identity & configuration binding
+
+The verifier registry binds every on-chain proof-admission decision to a
+deterministic commitment over adapter identity, SP1 program identity, and the
+semantic schema of the public values the proof carries.
+
+The binding chain is:
+
+```text
+SP1 guest semantics
+    ↓
+program ELF / VK
+    ↓
+statement schema version (hash)
+    ↓
+public-values schema (hash)
+    ↓
+verifierIdentityHash()
+    ↓
+canonical verifier-registry root
+    ↓
+chain configuration root
+    ↓
+PrfStatementAdmission expected configuration
+```
+
+### 7.1 `verifierIdentityHash()`
+
+`PrfRealizedAllocationVerifierAdapter.verifierIdentityHash()` returns:
+
+```text
+keccak256(abi.encodePacked(
+    address(sp1Verifier),
+    programVKey,
+    programElfSha256,
+    statementSchemaVersion,
+    publicValuesSchema
+))
+```
+
+This binds the adapter's full identity: the SP1 verifier contract, the program's
+verification key, the ELF SHA-256, the statement schema, and the public-values
+schema.  Any change to any of these fields requires a different identity hash.
+
+### 7.2 Canonical registry root
+
+Each registry entry is hashed as:
+
+```text
+entryHash_i = SHA256(
+    verifierId            (32 bytes)
+    || adapter            (20 bytes, address)
+    || programVKey        (32 bytes)
+    || programElfSha256   (32 bytes)
+    || programIdHash      (32 bytes, SHA-256 of UTF-8 programId)
+    || statementSchema    (32 bytes, statement schema version hash)
+    || publicValuesSchema (32 bytes, public-values schema hash)
+    || active             (32 bytes, 0x00…01 or 0x00…00)
+)
+```
+
+Entries are sorted by `verifierId` before hashing. The registry root is:
+
+```text
+registryRoot = SHA256(
+    "PRF_VERIFIER_REGISTRY_V1" (25 bytes)
+    || uint256(entry_count)     (32 bytes)
+    || sorted(entryHash_0, …, entryHash_{n-1})
+)
+```
+
+The `publicValuesSchema` field is included in this root so that a change to the
+public-values schema requires a new registry root.
+
+### 7.3 Configuration binding
+
+`PrfStatementAdmission` only accepts the current `verifierRegistryRoot` that the
+`SewConfigurationExecutor` binds from the sealed `chain-instance-genesis.v1`
+configuration root.  A proof whose public-values schema does not match the schema
+pinned in the active registry entry will not be admitted, because:
+
+1. The registry root (and thus the configuration root) changes when the schema
+   changes — a forged/stale registry root is rejected by the sealed configuration.
+2. The adapter independently validates `publicValuesSchema` and reverts
+   `PublicValuesSchemaMismatch` if the runtime public values do not match the
+   pinned schema.
+
+### 7.4 Versioned semantics
+
+The `evm-bytes32-v1` public-values schema is the current profile.  When broader
+realized-allocation semantics (caps, redistribution, haircuts, alternative
+rounding) are eventually introduced, a **new** profile/schema identity — not an
+in-place extension of `evm-bytes32-v1` — should be used.  Two generations that
+both expose `bytes32 statementRoot` may still carry different semantic profile
+identities and therefore must not share the same `publicValuesSchema`.

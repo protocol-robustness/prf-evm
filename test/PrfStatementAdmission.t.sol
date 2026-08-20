@@ -7,9 +7,10 @@ import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
 import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
 import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
 import {PrfRealizedAllocationVerifierAdapter} from "../src/PrfRealizedAllocationVerifierAdapter.sol";
+import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
 import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
 import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
-import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
+import {IPrfVerifierRegistry} from "../src/interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfStatementAdmissionTest
 /// @notice Tests the proof-admission path: realized-allocation-statement.v1
@@ -25,25 +26,30 @@ contract PrfStatementAdmissionTest is Test {
         0x150c28318e27fffacd9233c7ace128f7639f16c47d1c844e5440a07db39867cd;
     bytes32 internal constant CHAIN_INSTANCE_ROOT =
         0xf6c0f226998ebecb1123f78c2b30347d24c6e7ca2131f44f880b8a43c052cf86;
-    bytes32 internal constant CONFIG_ROOT_0 = sha256(bytes("configuration-0"));
-    bytes32 internal constant CONFIG_ROOT_1 = sha256(bytes("configuration-1"));
+
+    bytes32 internal constant CONFIG_ROOT_0 =
+        0xa3b808fa66ad9b9c4f35de5590ad95213cf0de76190db5980ced743f39f97f57;
 
     bytes32 internal constant VERIFIER_HASH = keccak256("SP1Groth16Verifier");
 
-    // From realized-statement-proof-fixture.json (regenerated with bytes32 PV).
     bytes32 internal constant FIXTURE_VKEY =
         0x00b9325e81961e4b6dfbe6fa7806796a15c018116225c85f5ef0811afc331d3f;
     bytes32 internal constant FIXTURE_ELF_SHA256 =
         0xdeed502019f2cc920aa92e36e15d429c8ace7406cce925195709dc353b3e2495;
+
     bytes32 internal constant FIXTURE_STATEMENT_ROOT =
         0xc22333a16df1c1efa352e9daab42ccbd78f4a1d7530ee3ed3cf7527ba62cbd81;
 
-    // Public values are a fixed bytes32 (EVM projection), not UTF-8 JSON.
     bytes internal constant FIXTURE_PUBLIC_VALUES =
         hex"c22333a16df1c1efa352e9daab42ccbd78f4a1d7530ee3ed3cf7527ba62cbd81";
 
     bytes32 internal constant WRONG_STATEMENT_ROOT =
         0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
+
+    bytes32 internal constant REALIZED_ALLOC_VERIFIER_ID =
+        keccak256("realized-allocation-statement.v1");
+    bytes32 internal constant FIXTURE_PV_SCHEMA_HASH =
+        keccak256("evm-bytes32-v1");
 
     SewGovernanceAuthorityAdapter internal authority;
     PrfChainInstanceGenesis internal genesis;
@@ -52,11 +58,11 @@ contract PrfStatementAdmissionTest is Test {
     PrfRealizedAllocationVerifierAdapter internal adapter;
     PrfVerifierRegistry internal registry;
     PrfStatementAdmission internal admission;
+    bytes32 internal VERIFIER_REGISTRY_ROOT_0;
 
     bytes32 internal PV_DIGEST;
 
     function setUp() public {
-        // Public values digest: sha256(bytes32) = sha256(32-byte root)
         PV_DIGEST = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
 
         authority = new SewGovernanceAuthorityAdapter(
@@ -81,7 +87,7 @@ contract PrfStatementAdmissionTest is Test {
             address(authority).codehash
         );
 
-        executor = new SewConfigurationExecutor(genesis, authority);
+        registry = new PrfVerifierRegistry(address(this));
 
         bytes32 commitment = keccak256(abi.encodePacked(FIXTURE_VKEY, FIXTURE_PUBLIC_VALUES));
         sp1Mock = new MockSP1Verifier(commitment, VERIFIER_HASH);
@@ -89,29 +95,75 @@ contract PrfStatementAdmissionTest is Test {
         adapter = new PrfRealizedAllocationVerifierAdapter(
             sp1Mock,
             FIXTURE_VKEY,
-            FIXTURE_ELF_SHA256
+            FIXTURE_ELF_SHA256,
+            "realized-allocation-statement.v1",
+            "evm-bytes32-v1"
         );
 
-        registry = new PrfVerifierRegistry(genesis, authority);
-        registry.addVerifier(
+        VERIFIER_REGISTRY_ROOT_0 = registry.computeCanonicalRoot(
+            new bytes32[](1),
+            new address[](1),
+            new bytes32[](1),
+            new bytes32[](1),
+            new string[](1),
+            new bytes32[](1),
+            new bytes32[](1),
+            new bool[](1)
+        );
+
+        bytes32[] memory ids = new bytes32[](1);
+        address[] memory adapters = new address[](1);
+        bytes32[] memory vkeys = new bytes32[](1);
+        bytes32[] memory elfHashes = new bytes32[](1);
+        string[] memory programIds = new string[](1);
+        bytes32[] memory schemaHashes = new bytes32[](1);
+        bytes32[] memory pvSchemas = new bytes32[](1);
+        bool[] memory actives = new bool[](1);
+
+        ids[0] = REALIZED_ALLOC_VERIFIER_ID;
+        adapters[0] = address(adapter);
+        vkeys[0] = FIXTURE_VKEY;
+        elfHashes[0] = FIXTURE_ELF_SHA256;
+        programIds[0] = "realized-allocation-proof.v1";
+        schemaHashes[0] = keccak256("realized-allocation-statement.v1");
+        pvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
+        actives[0] = true;
+
+        VERIFIER_REGISTRY_ROOT_0 = registry.computeCanonicalRoot(
+            ids, adapters, vkeys, elfHashes, programIds, schemaHashes, pvSchemas, actives
+        );
+
+        registry.registerVerifier(
+            VERIFIER_REGISTRY_ROOT_0,
+            REALIZED_ALLOC_VERIFIER_ID,
             address(adapter),
             FIXTURE_VKEY,
             FIXTURE_ELF_SHA256,
             "realized-allocation-proof.v1",
-            keccak256("realized-allocation-statement.v1")
+            keccak256("realized-allocation-statement.v1"),
+            FIXTURE_PV_SCHEMA_HASH
+        );
+        registry.sealRegistry(VERIFIER_REGISTRY_ROOT_0);
+
+        executor = new SewConfigurationExecutor(
+            genesis,
+            authority,
+            registry,
+            VERIFIER_REGISTRY_ROOT_0
         );
 
         admission = new PrfStatementAdmission(
             genesis,
             executor,
             registry,
-            CONFIG_ROOT_0
+            CONFIG_ROOT_0,
+            0
         );
     }
 
-    /// @notice Positive: valid SP1 proof with correct statement root is admitted.
     function test_AdmitStatement_Success() public {
         uint256 index = admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
             FIXTURE_PUBLIC_VALUES,
@@ -121,54 +173,21 @@ contract PrfStatementAdmissionTest is Test {
         assertEq(admission.admittedCount(), 1);
     }
 
-    /// @notice The extracted statement root from the public values matches
-    ///         the canonical statement root.
     function test_ExtractStatementRoot_RealFixture() public {
         bytes32 root = adapter.extractStatementRoot(FIXTURE_PUBLIC_VALUES);
         assertEq(root, FIXTURE_STATEMENT_ROOT);
     }
 
-    /// @notice Negative: wrong statement root → caught by try/catch → ProofVerificationFailed.
-    function test_AdmitStatement_WrongStatementRoot_Reverts() public {
-        bytes32 wrongPvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
+    function test_AdmitStatement_UnknownVerifier_Reverts() public {
+        bytes32 unknownId = keccak256("unknown-verifier");
 
-        vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
+        vm.expectRevert(abi.encodeWithSelector(
+            IPrfVerifierRegistry.VerifierNotFound.selector,
+            VERIFIER_REGISTRY_ROOT_0,
+            unknownId
+        ));
         admission.admitStatement(
-            WRONG_STATEMENT_ROOT,
-            "",
-            FIXTURE_PUBLIC_VALUES,
-            wrongPvDigest
-        );
-    }
-
-    /// @notice Negative: configuration root mismatch.
-    function test_AdmitStatement_WrongConfigRoot_Reverts() public {
-        bytes32 decisionRoot = sha256(bytes("decision-config-mismatch"));
-        authority.authoriseDecision(
-            decisionRoot,
-            0,
-            CHAIN_INSTANCE_ROOT,
-            CONFIG_ROOT_0,
-            CONFIG_ROOT_1,
-            1
-        );
-        executor.applyConfiguration(
-            decisionRoot,
-            CONFIG_ROOT_1,
-            1,
-            0,
-            CHAIN_INSTANCE_ROOT,
-            new bytes32[](0)
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PrfStatementAdmission.ConfigurationMismatch.selector,
-                CONFIG_ROOT_0,
-                CONFIG_ROOT_1
-            )
-        );
-        admission.admitStatement(
+            unknownId,
             FIXTURE_STATEMENT_ROOT,
             "",
             FIXTURE_PUBLIC_VALUES,
@@ -176,13 +195,76 @@ contract PrfStatementAdmissionTest is Test {
         );
     }
 
-    /// @notice Negative: verifier deactivated → NoVerifiersRegistered.
-    function test_AdmitStatement_InactiveVerifier_Reverts() public {
-        registry.deactivateVerifier(0);
+    function test_AdmitStatement_WrongConfigRoot_Reverts() public {
+        bytes32 newConfig = sha256(bytes("config-new"));
+
+        bytes32[] memory ids = new bytes32[](1);
+        address[] memory adapters = new address[](1);
+        bytes32[] memory vkeys = new bytes32[](1);
+        bytes32[] memory elfHashes = new bytes32[](1);
+        string[] memory programIds = new string[](1);
+        bytes32[] memory schemaHashes = new bytes32[](1);
+        bytes32[] memory pvSchemas = new bytes32[](1);
+        bool[] memory actives = new bool[](1);
+
+        ids[0] = keccak256("dummy-wrong-config");
+        adapters[0] = address(this);
+        vkeys[0] = FIXTURE_VKEY;
+        elfHashes[0] = FIXTURE_ELF_SHA256;
+        programIds[0] = "test-verifier.v1";
+        schemaHashes[0] = keccak256("realized-allocation-statement.v1");
+        pvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
+        actives[0] = true;
+
+        bytes32 newRegistry = registry.computeCanonicalRoot(
+            ids, adapters, vkeys, elfHashes, programIds, schemaHashes, pvSchemas, actives
+        );
+
+        registry.registerVerifier(
+            newRegistry,
+            ids[0],
+            address(this),
+            FIXTURE_VKEY,
+            FIXTURE_ELF_SHA256,
+            "test-verifier.v1",
+            keccak256("realized-allocation-statement.v1"),
+            FIXTURE_PV_SCHEMA_HASH
+        );
+        registry.sealRegistry(newRegistry);
+
+        bytes32 decisionRoot = sha256(bytes("decision-config-mismatch"));
+
+        authority.authoriseDecision(
+            decisionRoot,
+            0,
+            CHAIN_INSTANCE_ROOT,
+            CONFIG_ROOT_0,
+            newConfig,
+            VERIFIER_REGISTRY_ROOT_0,
+            newRegistry,
+            1
+        );
+
+        vm.startPrank(address(this));
+        executor.applyConfiguration(
+            decisionRoot,
+            newConfig,
+            newRegistry,
+            1,
+            0,
+            CHAIN_INSTANCE_ROOT,
+            new bytes32[](0)
+        );
+        vm.stopPrank();
 
         bytes32 pvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
-        vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.NoVerifiersRegistered.selector));
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfStatementAdmission.ConfigurationMismatch.selector,
+            CONFIG_ROOT_0,
+            newConfig
+        ));
         admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
             FIXTURE_PUBLIC_VALUES,
@@ -190,26 +272,34 @@ contract PrfStatementAdmissionTest is Test {
         );
     }
 
-    /// @notice Negative: tampered public values → ProofVerificationFailed
-    ///         (mock SP1 verifier commitment mismatch is caught by try/catch).
-    function test_AdmitStatement_TamperedPublicValues_Reverts() public {
-        bytes memory tampered = new bytes(32);
-        tampered[0] = 0xde;
-        bytes32 tamperedDigest = sha256(abi.encodePacked(tampered));
+    function test_AdmitStatement_WrongEpoch_Reverts() public {
+        PrfStatementAdmission wrongEpochAdmission = new PrfStatementAdmission(
+            genesis,
+            executor,
+            registry,
+            CONFIG_ROOT_0,
+            999
+        );
 
-        vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
-        admission.admitStatement(
+        bytes32 pvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfStatementAdmission.EpochMismatch.selector,
+            uint64(999),
+            uint64(0)
+        ));
+        wrongEpochAdmission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            tampered,
-            tamperedDigest
+            FIXTURE_PUBLIC_VALUES,
+            pvDigest
         );
     }
 
-    /// @notice Negative: zero statement root → ZeroRoot.
     function test_AdmitStatement_ZeroStatementRoot_Reverts() public {
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ZeroRoot.selector));
         admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
             bytes32(0),
             "",
             FIXTURE_PUBLIC_VALUES,
@@ -217,36 +307,147 @@ contract PrfStatementAdmissionTest is Test {
         );
     }
 
-    /// @notice Negative: wrong program vkey in adapter.
-    ///         The wrong adapter pins wrongVkey; the mock was configured for
-    ///         FIXTURE_VKEY. When admitStatement calls the wrong adapter, the
-    ///         mock verifier commitment fails, and the try/catch converts it
-    ///         to ProofVerificationFailed.
-    function test_AdmitStatement_WrongProgramVKey_Reverts() public {
-        bytes32 wrongVkey = keccak256("wrong-program-vkey");
-
-        PrfRealizedAllocationVerifierAdapter wrongAdapter =
-            new PrfRealizedAllocationVerifierAdapter(
-                sp1Mock,
-                wrongVkey,
-                FIXTURE_ELF_SHA256
-            );
-
-        registry.deactivateVerifier(0);
-        registry.addVerifier(
-            address(wrongAdapter),
-            wrongVkey,
-            FIXTURE_ELF_SHA256,
-            "realized-allocation-proof.v1",
-            keccak256("realized-allocation-statement.v1")
-        );
+    function test_AdmitStatement_TamperedPublicValues_Reverts() public {
+        bytes memory tampered = new bytes(32);
+        tampered[0] = 0xde;
+        bytes32 tamperedDigest = sha256(abi.encodePacked(tampered));
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            tampered,
+            tamperedDigest
         );
+    }
+
+    function test_AdmitStatement_MalformedPublicValues_Reverts() public {
+        bytes memory shortPv = new bytes(16);
+        bytes32 shortDigest = sha256(shortPv);
+
+        vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
+        admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            FIXTURE_STATEMENT_ROOT,
+            "",
+            shortPv,
+            shortDigest
+        );
+    }
+
+    function test_AdmitStatement_WrongStatementRoot_Reverts() public {
+        bytes32 wrongPvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
+
+        vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
+        admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            WRONG_STATEMENT_ROOT,
+            "",
+            FIXTURE_PUBLIC_VALUES,
+            wrongPvDigest
+        );
+    }
+
+    function test_Adapter_VerifierIdentityHash_IncludesSchema() public {
+        bytes32 expected = keccak256(abi.encodePacked(
+            address(sp1Mock),
+            FIXTURE_VKEY,
+            FIXTURE_ELF_SHA256,
+            keccak256("realized-allocation-statement.v1"),
+            keccak256("evm-bytes32-v1")
+        ));
+        assertEq(adapter.verifierIdentityHash(), expected);
+    }
+
+    function test_Adapter_PublicValuesSchemaIsPinned() public {
+        assertEq(adapter.publicValuesSchema(), keccak256("evm-bytes32-v1"));
+        assertEq(adapter.statementSchemaVersion(), keccak256("realized-allocation-statement.v1"));
+    }
+
+    function test_Adapter_ExtractStatementRoot_ValidatesSchema() public {
+        bytes32 root = adapter.extractStatementRoot(FIXTURE_PUBLIC_VALUES);
+        assertEq(root, FIXTURE_STATEMENT_ROOT);
+    }
+
+    function test_Adapter_ExtractStatementRoot_RejectsShortPublicValues() public {
+        bytes memory shortPv = new bytes(16);
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfRealizedAllocationVerifierAdapter.InvalidPublicValuesLength.selector,
+            uint256(16)
+        ));
+        adapter.extractStatementRoot(shortPv);
+    }
+
+    function test_Adapter_ExtractStatementRoot_RejectsLongPublicValues() public {
+        bytes memory longPv = new bytes(64);
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfRealizedAllocationVerifierAdapter.InvalidPublicValuesLength.selector,
+            uint256(64)
+        ));
+        adapter.extractStatementRoot(longPv);
+    }
+
+    function test_CanonicalRootMatchesRegistry() public {
+        assertTrue(registry.canonicalRootMatches(VERIFIER_REGISTRY_ROOT_0));
+    }
+
+    function test_Adversarial_SameProof_DifferentSchemaIdentity_CannotReused() public {
+        PrfRealizedAllocationVerifierAdapter wrongSchemaAdapter =
+            new PrfRealizedAllocationVerifierAdapter(
+                sp1Mock,
+                FIXTURE_VKEY,
+                FIXTURE_ELF_SHA256,
+                "realized-allocation-statement.v1",
+                "evm-bytes64-v1"
+            );
+
+        assertEq(adapter.publicValuesSchema(), keccak256("evm-bytes32-v1"));
+        assertEq(wrongSchemaAdapter.publicValuesSchema(), keccak256("evm-bytes64-v1"));
+
+        bytes32 correctIdentityHash = keccak256(abi.encodePacked(
+            address(sp1Mock),
+            FIXTURE_VKEY,
+            FIXTURE_ELF_SHA256,
+            keccak256("realized-allocation-statement.v1"),
+            keccak256("evm-bytes32-v1")
+        ));
+        bytes32 wrongIdentityHash = keccak256(abi.encodePacked(
+            address(sp1Mock),
+            FIXTURE_VKEY,
+            FIXTURE_ELF_SHA256,
+            keccak256("realized-allocation-statement.v1"),
+            keccak256("evm-bytes64-v1")
+        ));
+
+        assertEq(adapter.verifierIdentityHash(), correctIdentityHash);
+        assertEq(wrongSchemaAdapter.verifierIdentityHash(), wrongIdentityHash);
+        assertTrue(correctIdentityHash != wrongIdentityHash);
+
+        bytes32[] memory r0Ids = new bytes32[](1);
+        address[] memory r0Adapters = new address[](1);
+        bytes32[] memory r0Vkeys = new bytes32[](1);
+        bytes32[] memory r0ElfHashes = new bytes32[](1);
+        string[] memory r0ProgramIds = new string[](1);
+        bytes32[] memory r0SchemaHashes = new bytes32[](1);
+        bytes32[] memory r0PvSchemas = new bytes32[](1);
+        bool[] memory r0Actives = new bool[](1);
+
+        r0Ids[0] = REALIZED_ALLOC_VERIFIER_ID;
+        r0Adapters[0] = address(wrongSchemaAdapter);
+        r0Vkeys[0] = FIXTURE_VKEY;
+        r0ElfHashes[0] = FIXTURE_ELF_SHA256;
+        r0ProgramIds[0] = "realized-allocation-proof.v1";
+        r0SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
+        r0PvSchemas[0] = keccak256("evm-bytes64-v1");
+        r0Actives[0] = true;
+
+        bytes32 wrongRegistryRoot = registry.computeCanonicalRoot(
+            r0Ids, r0Adapters, r0Vkeys, r0ElfHashes, r0ProgramIds,
+            r0SchemaHashes, r0PvSchemas, r0Actives
+        );
+
+        assertTrue(wrongRegistryRoot != VERIFIER_REGISTRY_ROOT_0);
+        assertTrue(!registry.isSealed(wrongRegistryRoot));
     }
 }

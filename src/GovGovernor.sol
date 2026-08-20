@@ -49,6 +49,8 @@ contract GovGovernor is
         bytes32 indexed targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     );
 
@@ -250,6 +252,8 @@ contract GovGovernor is
         bytes32 targetRoot,
         bytes32 parentConfigurationRoot,
         bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
         uint64 epoch
     ) external onlyGovernance {
         _requireProtocolCompatibleAdapter(adapter);
@@ -260,6 +264,8 @@ contract GovGovernor is
             targetRoot,
             parentConfigurationRoot,
             newConfigurationRoot,
+            parentVerifierRegistryRoot,
+            newVerifierRegistryRoot,
             epoch
         );
 
@@ -270,6 +276,8 @@ contract GovGovernor is
             targetRoot,
             parentConfigurationRoot,
             newConfigurationRoot,
+            parentVerifierRegistryRoot,
+            newVerifierRegistryRoot,
             epoch
         );
     }
