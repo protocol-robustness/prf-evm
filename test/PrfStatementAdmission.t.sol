@@ -424,30 +424,131 @@ contract PrfStatementAdmissionTest is Test {
         assertEq(wrongSchemaAdapter.verifierIdentityHash(), wrongIdentityHash);
         assertTrue(correctIdentityHash != wrongIdentityHash);
 
-        bytes32[] memory r0Ids = new bytes32[](1);
-        address[] memory r0Adapters = new address[](1);
-        bytes32[] memory r0Vkeys = new bytes32[](1);
-        bytes32[] memory r0ElfHashes = new bytes32[](1);
-        string[] memory r0ProgramIds = new string[](1);
-        bytes32[] memory r0SchemaHashes = new bytes32[](1);
-        bytes32[] memory r0PvSchemas = new bytes32[](1);
-        bool[] memory r0Actives = new bool[](1);
+        // Same verifierId, same vkey/elf/SP1 verifier, different public-values schema.
+        bytes32[] memory wIds = new bytes32[](1);
+        address[] memory wAdapters = new address[](1);
+        bytes32[] memory wVkeys = new bytes32[](1);
+        bytes32[] memory wElfHashes = new bytes32[](1);
+        string[] memory wProgramIds = new string[](1);
+        bytes32[] memory wSchemaHashes = new bytes32[](1);
+        bytes32[] memory wPvSchemas = new bytes32[](1);
+        bool[] memory wActives = new bool[](1);
 
-        r0Ids[0] = REALIZED_ALLOC_VERIFIER_ID;
-        r0Adapters[0] = address(wrongSchemaAdapter);
-        r0Vkeys[0] = FIXTURE_VKEY;
-        r0ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r0ProgramIds[0] = "realized-allocation-proof.v1";
-        r0SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r0PvSchemas[0] = keccak256("evm-bytes64-v1");
-        r0Actives[0] = true;
+        wIds[0] = REALIZED_ALLOC_VERIFIER_ID;
+        wAdapters[0] = address(wrongSchemaAdapter);
+        wVkeys[0] = FIXTURE_VKEY;
+        wElfHashes[0] = FIXTURE_ELF_SHA256;
+        wProgramIds[0] = "realized-allocation-proof.v1";
+        wSchemaHashes[0] = keccak256("realized-allocation-statement.v1");
+        wPvSchemas[0] = keccak256("evm-bytes64-v1");
+        wActives[0] = true;
 
         bytes32 wrongRegistryRoot = registry.computeCanonicalRoot(
-            r0Ids, r0Adapters, r0Vkeys, r0ElfHashes, r0ProgramIds,
-            r0SchemaHashes, r0PvSchemas, r0Actives
+            wIds, wAdapters, wVkeys, wElfHashes, wProgramIds,
+            wSchemaHashes, wPvSchemas, wActives
         );
 
         assertTrue(wrongRegistryRoot != VERIFIER_REGISTRY_ROOT_0);
-        assertTrue(!registry.isSealed(wrongRegistryRoot));
+
+        registry.registerVerifier(
+            wrongRegistryRoot, wIds[0], wAdapters[0], wVkeys[0],
+            wElfHashes[0], wProgramIds[0], wSchemaHashes[0], wPvSchemas[0]
+        );
+        registry.sealRegistry(wrongRegistryRoot);
+        assertTrue(registry.isSealed(wrongRegistryRoot));
+        assertTrue(registry.canonicalRootMatches(wrongRegistryRoot));
+
+        SewConfigurationExecutor wrongRegistryExecutor = new SewConfigurationExecutor(
+            genesis, authority, registry, wrongRegistryRoot
+        );
+
+        PrfStatementAdmission wrongSchemaAdmission = new PrfStatementAdmission(
+            genesis, wrongRegistryExecutor, registry,
+            CONFIG_ROOT_0, 0
+        );
+
+        // The proof/public-values are valid for schema A (32-byte PV), but the
+        // active adapter under the wrong registry expects schema B (64-byte PV).
+        vm.expectRevert(PrfStatementAdmission.ProofVerificationFailed.selector);
+        wrongSchemaAdmission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            FIXTURE_STATEMENT_ROOT,
+            "",
+            FIXTURE_PUBLIC_VALUES,
+            PV_DIGEST
+        );
+    }
+
+    function test_Adversarial_SameWidthSchemaReplay_RejectedByConfigBinding() public {
+        PrfRealizedAllocationVerifierAdapter wrongSemAdapter =
+            new PrfRealizedAllocationVerifierAdapter(
+                sp1Mock,
+                FIXTURE_VKEY,
+                FIXTURE_ELF_SHA256,
+                "realized-allocation-statement.v1",
+                "evm-bytes32-v2"
+            );
+
+        assertEq(adapter.publicValuesSchema(), keccak256("evm-bytes32-v1"));
+        assertEq(wrongSemAdapter.publicValuesSchema(), keccak256("evm-bytes32-v2"));
+        assertTrue(adapter.publicValuesSchema() != wrongSemAdapter.publicValuesSchema());
+
+        // Both adapters use the same SP1 verifier, vkey, ELF, statement schema.
+        // Only the public-values schema string differs, at identical 32-byte width.
+        assertTrue(adapter.verifierIdentityHash() != wrongSemAdapter.verifierIdentityHash());
+
+        bytes32[] memory wIds = new bytes32[](1);
+        address[] memory wAdapters = new address[](1);
+        bytes32[] memory wVkeys = new bytes32[](1);
+        bytes32[] memory wElfHashes = new bytes32[](1);
+        string[] memory wProgramIds = new string[](1);
+        bytes32[] memory wSchemaHashes = new bytes32[](1);
+        bytes32[] memory wPvSchemas = new bytes32[](1);
+        bool[] memory wActives = new bool[](1);
+
+        wIds[0] = REALIZED_ALLOC_VERIFIER_ID;
+        wAdapters[0] = address(wrongSemAdapter);
+        wVkeys[0] = FIXTURE_VKEY;
+        wElfHashes[0] = FIXTURE_ELF_SHA256;
+        wProgramIds[0] = "realized-allocation-proof.v1";
+        wSchemaHashes[0] = keccak256("realized-allocation-statement.v1");
+        wPvSchemas[0] = keccak256("evm-bytes32-v2");
+        wActives[0] = true;
+
+        bytes32 semRegistryRoot = registry.computeCanonicalRoot(
+            wIds, wAdapters, wVkeys, wElfHashes, wProgramIds,
+            wSchemaHashes, wPvSchemas, wActives
+        );
+
+        assertTrue(semRegistryRoot != VERIFIER_REGISTRY_ROOT_0);
+
+        registry.registerVerifier(
+            semRegistryRoot, wIds[0], wAdapters[0], wVkeys[0],
+            wElfHashes[0], wProgramIds[0], wSchemaHashes[0], wPvSchemas[0]
+        );
+        registry.sealRegistry(semRegistryRoot);
+        assertTrue(registry.canonicalRootMatches(semRegistryRoot));
+
+        // The existing (v1-bound) admission is NOT affected by the v2 registry.
+        assertFalse(registry.isSealed(VERIFIER_REGISTRY_ROOT_0) == false);
+
+        SewConfigurationExecutor semExecutor = new SewConfigurationExecutor(
+            genesis, authority, registry, semRegistryRoot
+        );
+        PrfStatementAdmission semAdmission = new PrfStatementAdmission(
+            genesis, semExecutor, registry,
+            CONFIG_ROOT_0, 0
+        );
+
+        // The v2 adapter rejects the 32-byte PV because its pinned schema is v2,
+        // not v1. The admission catches this and reverts ProofVerificationFailed.
+        vm.expectRevert(PrfStatementAdmission.ProofVerificationFailed.selector);
+        semAdmission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            FIXTURE_STATEMENT_ROOT,
+            "",
+            FIXTURE_PUBLIC_VALUES,
+            PV_DIGEST
+        );
     }
 }

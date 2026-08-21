@@ -139,3 +139,46 @@ The TimelockController should not grant uncontrolled proposer/canceller authorit
 - Clojure canonical schema/hash implementation and cross-language vectors.
 
 Those should be layered on this boundary rather than folded into genesis.
+
+## Configuration/schema binding (FROZEN)
+
+The verifier registry now commits `publicValuesSchema` into the canonical
+registry root, closing the configuration/schema binding (CC1).
+See `HASH_BOUNDARIES.md` §7 for the full binding chain and identity levels.
+
+Two independent protections now exist:
+
+1. **Runtime decoding compatibility** — the adapter validates public-values
+   length against the pinned schema at runtime.
+2. **Configuration-bound semantic identity** — the registry root includes the
+   schema hash, so a schema change requires a new configuration authorization.
+
+The same-width adversarial test (`evm-bytes32-v1` vs `evm-bytes32-v2`,
+identical 32-byte physical width) demonstrates that property 2 is not merely
+a consequence of byte-length validation.
+
+This boundary is frozen. No further changes unless a future integration
+uncovers a defect.
+
+## Build profiles
+
+`foundry.toml` defines two profiles:
+
+| Profile  | Optimizer | `via-ir` | Use                     |
+|----------|-----------|----------|-------------------------|
+| `default`| enabled   | yes      | production bytecode     |
+| `test`   | disabled  | yes      | test compilation only   |
+
+The test profile exists because the IR optimizer's 16-slot stack-depth limit
+is exceeded by the conformance test's `setUp` after the `publicValuesSchema`
+field was added to the canonical registry-root computation.  The registry
+source code itself compiles cleanly under the default profile; the profile
+split is a test-compilation workaround only.
+
+```bash
+# Production build (optimizer on)
+forge build --skip test
+
+# Tests (optimizer off, test profile)
+FOUNDRY_PROFILE=test forge test
+```

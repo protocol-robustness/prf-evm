@@ -122,6 +122,9 @@ deployer/sealer does not indirectly enter `control-plane/runtime-code-keccak256`
 
 ## 7. Verifier registry identity & configuration binding
 
+**Status: FROZEN.** This boundary is closed (CC1). No further changes
+should be made unless a future integration uncovers an actual defect.
+
 The verifier registry binds every on-chain proof-admission decision to a
 deterministic commitment over adapter identity, SP1 program identity, and the
 semantic schema of the public values the proof carries.
@@ -215,3 +218,54 @@ rounding) are eventually introduced, a **new** profile/schema identity — not a
 in-place extension of `evm-bytes32-v1` — should be used.  Two generations that
 both expose `bytes32 statementRoot` may still carry different semantic profile
 identities and therefore must not share the same `publicValuesSchema`.
+
+### 7.5 Schema identity is semantic, not merely encoding
+
+A public-values schema identifier **MUST** change whenever the interpretation,
+ordering, domain, number, or semantic meaning of the committed public values
+changes — even if their ABI encoding and total byte length remain unchanged.
+
+For example, extending the `bytes32` payload from:
+
+```text
+bytes32  statementRoot
+```
+
+to:
+
+```text
+bytes32  statementRoot
+bytes32  executionEpoch
+```
+
+does **not** qualify as a minor encoding change.  The new layout carries
+different semantics (an additional domain component).  It requires a new
+`publicValuesSchema` and therefore a new registry root, configuration root,
+and admission binding.
+
+The adversarial test `test_Adversarial_SameWidthSchemaReplay_RejectedByConfigBinding`
+demonstrates this: two adapters with identical SP1 verifier, VKey, ELF, and
+statement schema but different `publicValuesSchema` strings
+(`evm-bytes32-v1` vs `evm-bytes32-v2`), both accepting 32-byte public values,
+produce different `verifierIdentityHash()` values and different canonical
+registry roots.  A proof valid under one schema cannot be replayed through
+an admission bound to the other schema's configuration.
+
+### 7.6 Identity levels
+
+Three distinct identities participate in this system.  They must not be
+treated as interchangeable:
+
+1. **Verifier implementation identity** — `PrfRealizedAllocationVerifierAdapter.verifierIdentityHash()`.
+   Encodes: SP1 verifier address, program VKey, ELF SHA-256, statement schema hash,
+   and public-values schema hash.  Used for runtime adapter self-check and external
+   identity binding.
+
+2. **Registry entry identity** — the per-entry hash inside `computeCanonicalRoot`.
+   Encodes: verifierId, adapter address, programVKey, ELF SHA-256, programId hash,
+   statement schema hash, public-values schema hash, active flag.
+   The registry root is a sorted, SHA-256 Merkle over entry identities.
+
+3. **Registry canonical root** — `registry.canonicalRoot()`.
+   Deterministic off-chain computable SHA-256 aggregate.  Bound into the chain
+   configuration root and ultimately into `PrfStatementAdmission.expectedConfigurationRoot`.
