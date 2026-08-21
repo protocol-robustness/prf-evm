@@ -1,62 +1,114 @@
 {
   "HASH_BOUNDARIES.md": {
-    "sha256": "b6068073f1c726ea8aee941abb676c0b66a9b755428325965da19e413e2d7d8d",
-    "bytes": 2729
+    "sha256": "e0a3cfc032af8764cab0920d32112f582fca1b62dfd440399351c9221c67adb7",
+    "bytes": 8190
+  },
+  "LICENSE": {
+    "sha256": "5bc7af0147027dce4ba3f4a0ec871124be17721eb3366433976dd659a41648cf",
+    "bytes": 11540
   },
   "MIGRATION_NOTES.md": {
     "sha256": "e75fe24ad7ffb15c9c8921212e1ae896dd472ea99356fb0a91ac95ada98f9829",
     "bytes": 1914
   },
   "README.md": {
-    "sha256": "957860af6611534925eadb81f750a9ea624f4ab7d1c0e9ae4877780e35921c24",
-    "bytes": 4802
+    "sha256": "7f476a0ff3ade13872298198d13f16e1853086a5404bb7d24d5c012d4c93b015",
+    "bytes": 14082
+  },
+  "SECURITY.md": {
+    "sha256": "f6b0b8c3cfeef7c7ebb5b588999805e74b26b9adfeac7f7759d67866de418cd4",
+    "bytes": 2143
   },
   "foundry.toml": {
-    "sha256": "1454cc2e618f4d75aa69f7096dc94a20963e66e255edf52edfaf592c41b5655d",
-    "bytes": 233
+    "sha256": "51e4a833f6e33449c7a453fa992f63639212bbc2f154a80b41cbb3f8f92394bd",
+    "bytes": 471
   },
   "src/GovGovernor.sol": {
-    "sha256": "fedffcda047314233034da3bc69150f06609331fb260ba162698f8268b000bc0",
-    "bytes": 14398
+    "sha256": "d8989703ceb1480764729c5938e44f523c28206dba7528bf2d6860929a356391",
+    "bytes": 14722
   },
   "src/PrfChainInstanceGenesis.sol": {
-    "sha256": "2c52ee49a0ca99852b2ded309eca4729cc82e352b2f7dda8f92a8e5815f08ba3",
-    "bytes": 7675
+    "sha256": "a46ef8163ab6411890c91cbc616786cf250798a89e939c660477230a620981ac",
+    "bytes": 7701
   },
   "src/PrfConfigurationSnapshot.sol": {
-    "sha256": "cc7785b018f22cc4758fb75e6b5474d5ffd1a5cb1067abb23a6ccb4ebd8c78b6",
-    "bytes": 1575
+    "sha256": "10ce542f97f35ea23930b7b1ff640ab316fb9313bd2b70087063106076f6be54",
+    "bytes": 1582
   },
   "src/PrfEvidenceAnchor.sol": {
-    "sha256": "ff34f1e7c6fd5a9d4738628a60e9b550d86968c6d5528a4ebd447b6487607d10",
-    "bytes": 4150
+    "sha256": "10dbb9d9caadec10e833b4fbfdabf2f37c2d7e722823d5c12a43f4e75ce9c474",
+    "bytes": 4157
+  },
+  "src/PrfRealizedAllocationVerifierAdapter.sol": {
+    "sha256": "e672de57b841444a8b64f61d1586d87010e5141e2474de41f7cd0befc9607768",
+    "bytes": 5776
+  },
+  "src/PrfStatementAdmission.sol": {
+    "sha256": "4bb3cb8affc4b3483623ee713cff4806012f0e4009ddab6b46f9065937262583",
+    "bytes": 8481
+  },
+  "src/PrfVerifierRegistry.sol": {
+    "sha256": "c0e770cd5364fd4e798728c056b193956cf195cf2d817de8937db1ebf08471f8",
+    "bytes": 13499
   },
   "src/SewConfigurationExecutor.sol": {
-    "sha256": "d30a35fefb2d35e31ed2b97828bae0adce64cd3821b02436052156ce6b55dc6e",
-    "bytes": 7013
+    "sha256": "84a48abbc758ce025d862b98f9308d54d122c1cb61227fa8f43439e731b30c0e",
+    "bytes": 8383
   },
   "src/SewGovernanceAuthorityAdapter.sol": {
-    "sha256": "50fa68b62b14afdf2aadc287eb757699a63b564768d43db02b33efaadf893f7d",
-    "bytes": 7774
+    "sha256": "6c1a57e1594663c679de23b7c8a31be756e153ded9552a95d7a4fa38f5091b85",
+    "bytes": 9037
+  },
+  "src/ISP1Verifier.sol": {
+    "sha256": "df6e6720443b3ae09b0ad1458e291694580c02ab43f28b49fa5a8bbfbcfbef4f",
+    "bytes": 879
+  },
+  "src/MockSP1Verifier.sol": {
+    "sha256": "c26c6d1e697dc4f8e9f08261189d245052b0f83b3b1b88705dfba1220276de57",
+    "bytes": 1630
   },
   "src/interfaces/IPrfChainInstanceGenesis.sol": {
-    "sha256": "b48621b350e21c78c797c741a1ff2562f46b221c4780da07dbe2bbfd84215f05",
-    "bytes": 1394
+    "sha256": "328111f11c0fed57053ae5d26a2d679fbe2c0c9e54958f3255b51fd883e373ce",
+    "bytes": 1401
   },
   "src/interfaces/IPrfConfigurationExecutor.sol": {
-    "sha256": "4f8631cf5a1e4cf093d711ad5cc391559c99df088bccc110b129fe9dcf35a42f",
-    "bytes": 838
+    "sha256": "63dd0a101b2de0b94567b297546c30c7b17906c34054f6bf403e1696bfb36b4d",
+    "bytes": 1117
   },
   "src/interfaces/IPrfEvidenceAnchor.sol": {
     "sha256": "2289755a978161f92480879b2904c128d3b4bde4234ddc74b1cd7e075cea9162",
     "bytes": 994
   },
+  "src/interfaces/IPrfProofVerifier.sol": {
+    "sha256": "0f120c2269bd7b5b80d5b38e6725ede95b43e052ae8ea273301611994d1e9881",
+    "bytes": 1049
+  },
+  "src/interfaces/IPrfStatementAdmission.sol": {
+    "sha256": "d1cd418955e9e4fc37fe4cf177fd6f796904c35178d96274a238eb14bd282ab6",
+    "bytes": 771
+  },
+  "src/interfaces/IPrfVerifierRegistry.sol": {
+    "sha256": "074345570d5127e609bc9ce1721d5133f722a68fd5194406ba7f411f3708fcbf",
+    "bytes": 3185
+  },
   "src/interfaces/ISewGovernanceAuthority.sol": {
-    "sha256": "394d3f3bc45d7aa2b1be8be51f8b9f6dad40ec31d6a89e85217d6bc916b1ca5f",
-    "bytes": 1974
+    "sha256": "98317723f5ee5d5c5422241b427fcc23cb2484c4656b725ef759d00b5de349ae",
+    "bytes": 2470
   },
   "test/PrfGenesis.t.sol": {
-    "sha256": "974e014db860f8d5ba0b4927c1bebe6448467f5eb5dd19f6d618df0dad93653e",
-    "bytes": 4760
+    "sha256": "e1a01a77f9c7eba9a02b3d3bf527140718fb944e904632daeff1b1f53252aa10",
+    "bytes": 11077
+  },
+  "test/PrfConfigurationAuthorizationConformance.t.sol": {
+    "sha256": "8578f3f3faac9a2f64f8ad8e6eafc94626711085d5ef2827faa638c9bb4728b8",
+    "bytes": 40745
+  },
+  "test/PrfStatementAdmission.t.sol": {
+    "sha256": "881d3ce0ae4e6188474bcd402a9e5ec6d4aacfc8397ad2a04d4d3a8e17931c38",
+    "bytes": 20664
+  },
+  "test/PrfStatementAdmissionRealProof.t.sol": {
+    "sha256": "dae0143953dd2f6dbfbaa81ea4daff7aafd5f14365fd8da2a3504b145470b629",
+    "bytes": 16832
   }
 }
