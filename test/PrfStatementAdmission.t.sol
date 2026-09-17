@@ -60,11 +60,7 @@ contract PrfStatementAdmissionTest is Test {
     PrfStatementAdmission internal admission;
     bytes32 internal VERIFIER_REGISTRY_ROOT_0;
 
-    bytes32 internal PV_DIGEST;
-
     function setUp() public {
-        PV_DIGEST = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
-
         authority = new SewGovernanceAuthorityAdapter(
             PROTOCOL_ROOT,
             address(this),
@@ -162,14 +158,13 @@ contract PrfStatementAdmissionTest is Test {
     }
 
     function test_AdmitStatement_Success() public {
-        uint256 index = admission.admitStatement(
+        bytes32 receiptId = admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            FIXTURE_PUBLIC_VALUES
         );
-        assertEq(index, 0);
+        assertTrue(receiptId != bytes32(0));
         assertEq(admission.admittedCount(), 1);
     }
 
@@ -190,8 +185,7 @@ contract PrfStatementAdmissionTest is Test {
             unknownId,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
@@ -256,8 +250,6 @@ contract PrfStatementAdmissionTest is Test {
             new bytes32[](0)
         );
         vm.stopPrank();
-
-        bytes32 pvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ConfigurationMismatch.selector,
             CONFIG_ROOT_0,
@@ -267,8 +259,7 @@ contract PrfStatementAdmissionTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            pvDigest
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
@@ -280,8 +271,6 @@ contract PrfStatementAdmissionTest is Test {
             CONFIG_ROOT_0,
             999
         );
-
-        bytes32 pvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.EpochMismatch.selector,
             uint64(999),
@@ -291,8 +280,7 @@ contract PrfStatementAdmissionTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            pvDigest
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
@@ -302,50 +290,43 @@ contract PrfStatementAdmissionTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             bytes32(0),
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
     function test_AdmitStatement_TamperedPublicValues_Reverts() public {
         bytes memory tampered = new bytes(32);
         tampered[0] = 0xde;
-        bytes32 tamperedDigest = sha256(abi.encodePacked(tampered));
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            tampered,
-            tamperedDigest
+            tampered
         );
     }
 
     function test_AdmitStatement_MalformedPublicValues_Reverts() public {
         bytes memory shortPv = new bytes(16);
-        bytes32 shortDigest = sha256(shortPv);
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            shortPv,
-            shortDigest
+            shortPv
         );
     }
 
     function test_AdmitStatement_WrongStatementRoot_Reverts() public {
-        bytes32 wrongPvDigest = sha256(abi.encodePacked(FIXTURE_PUBLIC_VALUES));
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             WRONG_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            wrongPvDigest
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
@@ -474,8 +455,7 @@ contract PrfStatementAdmissionTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            FIXTURE_PUBLIC_VALUES
         );
     }
 
@@ -547,8 +527,7 @@ contract PrfStatementAdmissionTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            FIXTURE_PUBLIC_VALUES,
-            PV_DIGEST
+            FIXTURE_PUBLIC_VALUES
         );
     }
 }

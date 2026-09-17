@@ -67,7 +67,12 @@ PrfVerifierRegistry                 (sealed snapshot of R; governance-managed)
 └──────────────────────────────────────────────┘
         │
         ▼
-PrfStatementAdmission  ──►  verified statement (fail-closed)
+PrfStatementAdmission  ──►  durable admission receipt (fail-closed)
+        │
+        ├──► PrfAssuredOperationConsumer
+        │      precommitted operation + matching receipt
+        │             ↓
+        │      one-shot Pending → Applied transition
         │
         ▼
 PrfEvidenceAnchor       (existence only, NOT correctness)
@@ -99,7 +104,8 @@ This package deliberately does **not** invent an EVM replacement for PRF canonic
 |---|---|
 | `PrfRealizedAllocationVerifierAdapter.sol` | Binds the `realized-allocation-statement.v1` SP1 program to the EVM verification gateway. Pins the program verification key, ELF SHA-256, statement-schema version, and `publicValuesSchema`, and delegates SP1 proof verification to an `ISP1Verifier`. Validates public-values length against the pinned schema at runtime. `verifierIdentityHash()` commits the full verifier identity. |
 | `PrfVerifierRegistry.sol` | Versioned, immutable verifier-registry snapshots keyed by canonical registry root `R`. Maintains entries (adapter, program VK, ELF SHA-256, programId, statement-schema hash, `publicValuesSchema`, active flag), sorted by `verifierId`. `sealRegistry(R)` verifies the committed root matches the canonical SHA-256 root computed from the actual entries. Only the configured governor may register/activate/deactivate verifiers and seal. |
-| `PrfStatementAdmission.sol` | Admission gateway for `realized-allocation-statement.v1` proofs. Binds the chain-instance genesis root, the current configuration root and epoch (from `SewConfigurationExecutor`), and the current sealed verifier-registry root. Re-checks `verifierRegistry.canonicalRoot(R) == R` before resolving a verifier entry. Fail-closed: any verification failure reverts. |
+| `PrfStatementAdmission.sol` | Admission gateway for `realized-allocation-statement.v1` proofs. It derives `sha256(publicValues)` internally, binds the chain-instance genesis root, current configuration root/epoch, and current sealed verifier-registry root, then persists a durable admission receipt containing the exact successful verifier/configuration facts. Fail-closed: any verification failure reverts. |
+| `PrfAssuredOperationConsumer.sol` | Minimal non-custodial reference consumer. An authority precommits a pending operation to both a statement root and an immutable configuration-root/epoch acceptance snapshot; `applyOperation` requires a matching durable receipt from one fixed admission contract and atomically records one operation-scoped consumption before moving the operation to `Applied`. It has no generic callback or alternate apply route. |
 | `PrfEvidenceAnchor.sol` | Permissionless immutable anchoring of PRF evidence commitments. Records **existence**, not correctness. Mutable forensic/status projections are deliberately excluded. |
 
 ### Verifier interfaces and SP1 bindings
@@ -166,9 +172,65 @@ Deployment is two layers: the genesis/governance bootstrap establishes constitut
 4. Governor registers the adapter as a verifier entry; `R0` is the off-chain-computed canonical root (`PrfVerifierRegistry.computeCanonicalRoot`, a `pure` function).
 5. Seal the registry via `sealRegistry(R0)` — `R0` is now committed to configuration identity. **This is the configuration-binding step:** the sealed registry root is the `SewConfigurationExecutor.currentVerifierRegistryRoot`, and `PrfStatementAdmission` is bound to the same `currentConfigurationRoot`/`currentEpoch`/registry. Later registry changes require a governance transition that advances the configuration root in lockstep (`C → C'`, `R → R'` under one decision).
 6. Deploy `PrfStatementAdmission(genesis, configurationExecutor, verifierRegistry, expectedConfigurationRoot, expectedConfigurationEpoch)`.
-7. (Optional) Deploy `PrfEvidenceAnchor` — records existence only.
+7. Deploy any application consumer with the admission contract and its operation authority. For the reference path, deploy `PrfAssuredOperationConsumer(admission, operationAuthority)`, then precommit every operation's exact expected statement root **and** its required configuration root/epoch acceptance snapshot before application.
+8. (Optional) Deploy `PrfEvidenceAnchor` — records existence only.
 
 This layered design reinforces the architecture's strongest property: **proof admission is layered on genesis/configuration authority, rather than being part of genesis identity itself.** `PrfStatementAdmission` cannot be constructed until the genesis contract is sealed and the configuration executor is bound; the verifier registry and admission are governed, separable surfaces.
+
+### PRF EVM Assurance Admission/Consumption V1
+
+The reusable enforcement pattern is:
+
+```text
+1. portable semantic result exists as canonical PRF root
+2. proof verifier establishes that root
+3. admission snapshots verification authority/configuration
+4. admission issues an EVM-local receipt identity
+5. application independently precommits the root it requires
+6. application checks the receipt against that precommitment
+7. application applies its own acceptance policy
+8. consumption receives a separate EVM-local identity
+9. operation moves terminally exactly once
+```
+
+The authority boundary is intentional:
+
+> Verification authority establishes the assurance fact; application authority determines whether that assurance fact authorizes its local transition.
+
+Admission does not prove an application address, operation ID, recipient, or future state transition unless those values are part of the canonical proved result. The application must bind its own operation to the admitted root and enforce its own local policy.
+
+### Durable admission and reference enforcement
+
+`admitStatement(verifierId, statementRoot, proof, publicValues)` derives `sha256(publicValues)` inside the admission contract; callers cannot attach a competing audit digest. Successful admission persists an `AdmissionReceipt` keyed by an EVM-local `admissionReceiptId`. The receipt snapshots the genesis roots, configured root/epoch, registry root, verifier ID/adapter, program VK/ELF, statement/public-values schema identities, statement root, and derived public-values digest.
+
+`admissionReceiptId` is **not** a proof-bytes identity and is not a claim that SP1 proved a consumer or operation. It is an EVM-local identity for the successful admission snapshot. It is derived from the admission domain, admission contract and chain, typed authority snapshot, typed verifier snapshot, statement root, and public-values digest.
+
+Admission facts are frozen at admission time; consumer acceptance is determined independently by each operation's immutable policy. The reference policy requires an exact statement root, configuration root, and configuration epoch. Thus a receipt admitted under the required snapshot remains usable after later live configuration changes, while a receipt first admitted under a later snapshot cannot satisfy an earlier operation even for the same statement root. Each operation is immutable after creation. Its consumption identity binds the consumer address/chain, operation ID, admission receipt ID, expected statement root, required configuration root, and required configuration epoch. Consumption is one-shot **per operation**; the same receipt may be used for another independently precommitted operation only when it satisfies that operation's complete acceptance policy. This is application policy, not a new SP1 assertion.
+
+### V1 freeze boundary
+
+The `PRF EVM Assurance Admission/Consumption V1` reference pattern is frozen at:
+
+```text
+PRF canonical statement root
+    → SP1 proof verification
+    → durable admission receipt
+    → immutable admission facts
+    → consumer-owned immutable acceptance policy
+    → operation-scoped one-shot consumption
+    → enforced Pending → Applied transition
+```
+
+The reference operation binds the accepted `configurationRoot` and
+`configurationEpoch`, but not a particular `verifierId`. If one configuration
+permits multiple valid verifier identities capable of admitting the same
+statement, the reference consumer accepts any receipt matching the operation's
+statement root and configuration snapshot. This is the deliberate V1 policy:
+**trust this configuration**, not **trust only verifier X**.
+
+A concrete production consumer may later bind a verifier ID, verifier snapshot,
+exact receipt ID, expiry, cancellation, custody, recovery, or emergency policy.
+Those are consumer-specific extensions outside this frozen reference surface.
 
 ## Important deployment invariant
 
@@ -217,6 +279,7 @@ FOUNDRY_PROFILE=test forge test --match-contract PrfGenesisTest
 FOUNDRY_PROFILE=test forge test --match-contract PrfConfigurationAuthorizationConformanceTest
 FOUNDRY_PROFILE=test forge test --match-contract PrfStatementAdmissionTest
 FOUNDRY_PROFILE=test forge test --match-contract PrfStatementAdmissionRealProofTest
+FOUNDRY_PROFILE=test forge test --match-contract PrfAssuredOperationConsumerTest
 ```
 
 The 64-test suite (all passing) covers genesis sealing, configuration-authorisation, verifier-registry canonical-root sealing and immutability, and the statement-admission rejection matrix. Verified rejection categories include: wrong configuration root, wrong epoch, stale parent, consumed decision, unsealed/forged registry root, wrong verifier identity, correct-proof-with-wrong-schema identity, tampered/malformed public values, statement-root mismatch, tampered proof bytes, inactive verifier, and mock-vs-real proof incompatibility. See `src/fixtures/realized-statement-proof-fixture.json` for the real-prover proof fixture.

@@ -348,16 +348,14 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 statementRoot = FIXTURE_STATEMENT_ROOT;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(statementRoot);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
-        uint256 index = admission.admitStatement(
+        bytes32 receiptId = admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             statementRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
-        assertEq(index, 0);
+        assertTrue(receiptId != bytes32(0));
         assertEq(admission.admittedCount(), 1);
     }
 
@@ -742,7 +740,6 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 statementRoot = FIXTURE_STATEMENT_ROOT;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(statementRoot);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
         authority.authoriseDecision(
             DECISION_ROOT,
@@ -781,8 +778,7 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
             LEGACY_R0_ONLY_VERIFIER_ID,
             statementRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
     }
 
@@ -798,15 +794,13 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 wrongRoot = 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(FIXTURE_STATEMENT_ROOT);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             wrongRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
     }
 
@@ -820,15 +814,13 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         );
 
         bytes memory shortPv = new bytes(16);
-        bytes32 publicValuesDigest = sha256(shortPv);
 
         vm.expectRevert(abi.encodeWithSelector(PrfStatementAdmission.ProofVerificationFailed.selector));
         admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             FIXTURE_STATEMENT_ROOT,
             "",
-            shortPv,
-            publicValuesDigest
+            shortPv
         );
     }
 
@@ -913,7 +905,6 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 statementRoot = FIXTURE_STATEMENT_ROOT;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(statementRoot);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
         vm.prank(eoa);
         vm.expectRevert(abi.encodeWithSelector(
@@ -925,8 +916,7 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
             forgedIds[0],
             statementRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
     }
 
@@ -1106,7 +1096,6 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 statementRoot = FIXTURE_STATEMENT_ROOT;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(statementRoot);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ConfigurationMismatch.selector,
@@ -1117,8 +1106,7 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             statementRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
     }
 
@@ -1158,16 +1146,14 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 statementRoot = FIXTURE_STATEMENT_ROOT;
         bytes memory publicValues = new bytes(32);
         publicValues = abi.encodePacked(statementRoot);
-        bytes32 publicValuesDigest = sha256(publicValues);
 
-        uint256 index = admission.admitStatement(
+        bytes32 receiptId = admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             statementRoot,
             "",
-            publicValues,
-            publicValuesDigest
+            publicValues
         );
-        assertEq(index, 0);
+        assertTrue(receiptId != bytes32(0));
         assertEq(admission.admittedCount(), 1);
     }
 }

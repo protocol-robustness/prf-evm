@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {ISP1Verifier} from "./ISP1Verifier.sol";
+import {IPrfStatementVerifierAdapter} from "./interfaces/IPrfStatementVerifierAdapter.sol";
 
 /// @title PrfRealizedAllocationVerifierAdapter
 /// @notice Binds the realized-allocation-statement.v1 SP1 program to the
@@ -21,16 +22,16 @@ import {ISP1Verifier} from "./ISP1Verifier.sol";
 ///             → 32-byte root
 ///             → SP1 public value (bytes32)
 ///             → abi.decode(publicValues, (bytes32))
-contract PrfRealizedAllocationVerifierAdapter {
+contract PrfRealizedAllocationVerifierAdapter is IPrfStatementVerifierAdapter {
     /// @notice The statement schema version committed by the SP1 guest (hash of string).
-    bytes32 public immutable statementSchemaVersion;
+    bytes32 public immutable override statementSchemaVersion;
 
     /// @notice The public-values schema hash (e.g. keccak256("evm-bytes32-v1")).
-    bytes32 public immutable publicValuesSchema;
+    bytes32 public immutable override publicValuesSchema;
 
     ISP1Verifier public immutable sp1Verifier;
-    bytes32 public immutable programVKey;
-    bytes32 public immutable programElfSha256;
+    bytes32 public immutable override programVKey;
+    bytes32 public immutable override programElfSha256;
 
     error StatementRootMismatch(bytes32 expected, bytes32 actual);
     error InvalidPublicValuesLength(uint256 actualLength);
@@ -51,6 +52,7 @@ contract PrfRealizedAllocationVerifierAdapter {
     ) {
         require(address(sp1Verifier_) != address(0), "PRA: zero verifier");
         require(programVKey_ != bytes32(0), "PRA: zero vkey");
+        require(programElfSha256_ != bytes32(0), "PRA: zero ELF hash");
         statementSchemaVersion = keccak256(bytes(statementSchemaVersion_));
         publicValuesSchema = keccak256(bytes(publicValuesSchema_));
         sp1Verifier = sp1Verifier_;
@@ -83,7 +85,7 @@ contract PrfRealizedAllocationVerifierAdapter {
         bytes32 expectedStatementRoot,
         bytes calldata proof,
         bytes calldata publicValues
-    ) external view returns (bytes32) {
+    ) external view override returns (bytes32) {
         if (expectedStatementRoot == bytes32(0))
             revert StatementRootMismatch(bytes32(0), bytes32(0));
 

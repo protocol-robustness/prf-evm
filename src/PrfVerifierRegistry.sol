@@ -79,6 +79,7 @@ contract PrfVerifierRegistry is ERC165, IPrfVerifierRegistry {
         if (registryRoot == bytes32(0)) revert ZeroRoot();
         if (adapter == address(0)) revert ZeroAddress();
         if (programVKey == bytes32(0)) revert ZeroRoot();
+        if (programElfSha256 == bytes32(0)) revert ZeroRoot();
         if (verifierId == bytes32(0)) revert ZeroRoot();
         if (statementSchemaVersionHash == bytes32(0)) revert ZeroRoot();
         if (publicValuesSchema == bytes32(0)) revert ZeroRoot();

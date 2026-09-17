@@ -219,7 +219,102 @@ in-place extension of `evm-bytes32-v1` — should be used.  Two generations that
 both expose `bytes32 statementRoot` may still carry different semantic profile
 identities and therefore must not share the same `publicValuesSchema`.
 
-### 7.5 Schema identity is semantic, not merely encoding
+## 8. PRF EVM Assurance Admission/Consumption V1
+
+The reusable boundary is:
+
+```text
+canonical PRF root
+    → proof verification
+    → admission-time authority snapshot
+    → EVM-local admission receipt
+    → application root precommitment
+    → application acceptance policy
+    → EVM-local consumption identity
+    → one terminal local transition
+```
+
+Verification authority establishes the assurance fact; application authority
+determines whether that assurance fact authorizes its local transition. The
+admission receipt therefore does not imply that the proof established an
+application address, operation ID, recipient, or future state transition unless
+those values are part of the canonical proved result.
+
+## 8.1 Admission receipt and application-consumption identities
+
+`PrfStatementAdmission` derives `publicValuesDigest = sha256(publicValues)` after
+verifying the proof. It persists an `AdmissionReceipt`; this records admission-time
+facts rather than changing the SP1 public-values schema.
+
+The EVM-local receipt ID is:
+
+```text
+authoritySnapshot = keccak256(abi.encode(
+  protocolGenesisRoot,
+  chainInstanceGenesisRoot,
+  expectedConfigurationRoot,
+  expectedConfigurationEpoch,
+  verifierRegistryRoot
+))
+
+verifierSnapshot = keccak256(abi.encode(
+  verifierId,
+  verifierAdapter,
+  programVKey,
+  programElfSha256,
+  statementSchemaVersionHash,
+  publicValuesSchema
+))
+
+admissionReceiptId = keccak256(abi.encode(
+  keccak256("PRF_STATEMENT_ADMISSION_V1"),
+  admissionContract,
+  chainId,
+  authoritySnapshot,
+  verifierSnapshot,
+  statementRoot,
+  publicValuesDigest
+))
+```
+
+This is **not** a proof-byte identity and does not claim that SP1 proved any
+consumer or application operation. It identifies the durable EVM admission fact.
+
+`PrfAssuredOperationConsumer` separately derives an operation-scoped consumption
+identity:
+
+```text
+consumptionId = keccak256(abi.encode(
+  keccak256("PRF_ASSURED_OPERATION_CONSUMPTION_V1"),
+  consumer,
+  chainId,
+  operationId,
+  admissionReceiptId,
+  expectedStatementRoot,
+  requiredConfigurationRoot,
+  requiredConfigurationEpoch
+))
+```
+
+The consumer writes the consumption flag and terminal `Applied` operation state
+before emitting its event and performs no external calls. It accepts an immutable
+receipt from its configured admission contract only when the receipt's statement
+root, configuration root, and configuration epoch equal the operation's immutable
+precommitment. Admission facts are historical: a receipt remains a record of what
+was valid at admission time after later governed configuration changes. Consumer
+acceptance is separate: an operation accepts only the snapshot it explicitly fixed,
+so a later-snapshot receipt cannot satisfy an earlier operation merely because it
+commits the same statement root.
+
+The frozen V1 consumer policy binds configuration root and epoch, not a particular
+`verifierId`. If a configuration permits multiple verifier identities to admit the
+same statement, any receipt matching the operation's statement root and snapshot
+is accepted. This intentionally means **trust this configuration**, rather than
+**trust only verifier X**. Verifier-specific acceptance, exact receipt binding,
+expiry, cancellation, custody, recovery, and emergency policy remain concrete
+consumer concerns.
+
+### 7.6 Schema identity is semantic, not merely encoding
 
 A public-values schema identifier **MUST** change whenever the interpretation,
 ordering, domain, number, or semantic meaning of the committed public values
@@ -251,7 +346,7 @@ produce different `verifierIdentityHash()` values and different canonical
 registry roots.  A proof valid under one schema cannot be replayed through
 an admission bound to the other schema's configuration.
 
-### 7.6 Identity levels
+### 7.7 Identity levels
 
 Three distinct identities participate in this system.  They must not be
 treated as interchangeable:

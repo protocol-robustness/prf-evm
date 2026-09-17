@@ -4,7 +4,7 @@ pragma solidity ^0.8.33;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import {PrfRealizedAllocationVerifierAdapter} from "./PrfRealizedAllocationVerifierAdapter.sol";
+import {IPrfStatementVerifierAdapter} from "./interfaces/IPrfStatementVerifierAdapter.sol";
 import {PrfVerifierRegistry} from "./PrfVerifierRegistry.sol";
 import {SewConfigurationExecutor} from "./SewConfigurationExecutor.sol";
 import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
@@ -12,7 +12,7 @@ import {IPrfStatementAdmission} from "./interfaces/IPrfStatementAdmission.sol";
 import {IPrfVerifierRegistry} from "./interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfStatementAdmission
-/// @notice Admission gateway for realized-allocation-statement.v1 proofs.
+/// @notice Generic admission gateway for registered PRF statement proofs.
 ///         Binds together:
 ///         - The chain-instance genesis root (immutable identity).
 ///         - The current configuration root (from SewConfigurationExecutor).
@@ -37,12 +37,14 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
 
     uint256 public admittedCount;
 
+    mapping(bytes32 receiptId => IPrfStatementAdmission.AdmissionReceipt) private _admissionReceipts;
+
     event StatementAdmitted(
         bytes32 indexed statementRoot,
-        bytes32 indexed proofArtifactId,
+        bytes32 indexed admissionReceiptId,
         bytes32 indexed publicValuesDigest,
-        address verifier,
-        bytes32 programVKey,
+        bytes32 verifierId,
+        address verifierAdapter,
         uint256 admissionIndex
     );
 
@@ -57,6 +59,7 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
     error StatementRootMismatch(bytes32 expected, bytes32 actual);
     error ZeroRoot();
     error InvalidEpoch(uint64 epoch);
+    error AdapterIdentityMismatch(address adapter);
 
     constructor(
         IPrfChainInstanceGenesis genesis_,
@@ -85,44 +88,70 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
     /// @param statementRoot The expected statement root (canonical SHA-256 root).
     /// @param proof The SP1 proof bytes.
     /// @param publicValues The public values bytes (fixed-width EVM bytes32).
-    /// @param publicValuesDigest SHA-256 of public values (for off-chain audit).
+    /// @return receiptId A durable, configuration-specific admission receipt ID.
     function admitStatement(
         bytes32 verifierId,
         bytes32 statementRoot,
         bytes calldata proof,
-        bytes calldata publicValues,
-        bytes32 publicValuesDigest
-    ) external override returns (uint256) {
+        bytes calldata publicValues
+    ) external override returns (bytes32 receiptId) {
         if (verifierId == bytes32(0)) revert ZeroRoot();
         if (statementRoot == bytes32(0)) revert ZeroRoot();
-        if (publicValuesDigest == bytes32(0)) revert ZeroRoot();
 
         _checkConfigurationBinding();
 
         bytes32 activeRegistryRoot = configurationExecutor.currentVerifierRegistryRoot();
+        IPrfVerifierRegistry.VerifierEntry memory entry =
+            verifierRegistry.getVerifier(activeRegistryRoot, verifierId);
+        if (entry.adapter == address(0) || !entry.active) revert NoVerifiersRegistered();
 
-        address adapterAddr = _resolveAdapter(
+        _checkAdapterIdentity(entry.adapter, entry);
+        _verifyProof(entry.adapter, statementRoot, proof, publicValues);
+
+        bytes32 publicValuesDigest = sha256(publicValues);
+        receiptId = _admissionReceiptId(
             activeRegistryRoot,
-            verifierId
-        );
-
-        bytes32 vkey = _resolveVkey(activeRegistryRoot, verifierId);
-
-        bytes32 extractedRoot = _verifyProof(
-            adapterAddr,
-            statementRoot,
-            proof,
-            publicValues
-        );
-
-        _emitAdmission(
-            adapterAddr,
-            vkey,
+            verifierId,
+            entry,
             statementRoot,
             publicValuesDigest
         );
 
-        return admittedCount - 1;
+        _admissionReceipts[receiptId] = IPrfStatementAdmission.AdmissionReceipt({
+            exists: true,
+            protocolGenesisRoot: protocolGenesisRoot,
+            chainInstanceGenesisRoot: chainInstanceGenesisRoot,
+            configurationRoot: expectedConfigurationRoot,
+            configurationEpoch: expectedConfigurationEpoch,
+            verifierRegistryRoot: activeRegistryRoot,
+            verifierId: verifierId,
+            verifierAdapter: entry.adapter,
+            programVKey: entry.programVKey,
+            programElfSha256: entry.programElfSha256,
+            statementSchemaVersionHash: entry.statementSchemaVersionHash,
+            publicValuesSchema: entry.publicValuesSchema,
+            statementRoot: statementRoot,
+            publicValuesDigest: publicValuesDigest
+        });
+
+        uint256 index = admittedCount++;
+        emit StatementAdmitted(
+            statementRoot,
+            receiptId,
+            publicValuesDigest,
+            verifierId,
+            entry.adapter,
+            index
+        );
+    }
+
+    function admissionReceipt(bytes32 receiptId)
+        external
+        view
+        override
+        returns (IPrfStatementAdmission.AdmissionReceipt memory)
+    {
+        return _admissionReceipts[receiptId];
     }
 
     function _checkConfigurationBinding() private view {
@@ -150,20 +179,18 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
             revert RegistryRootMismatch(activeRegistryRoot, computedRoot);
     }
 
-    function _resolveAdapter(bytes32 registryRoot, bytes32 vid)
-        private view returns (address)
-    {
-        IPrfVerifierRegistry.VerifierEntry memory entry =
-            verifierRegistry.getVerifier(registryRoot, vid);
-        if (entry.adapter == address(0)) revert NoVerifiersRegistered();
-        if (!entry.active) revert NoVerifiersRegistered();
-        return entry.adapter;
-    }
 
-    function _resolveVkey(bytes32 registryRoot, bytes32 vid)
-        private view returns (bytes32)
-    {
-        return verifierRegistry.getVerifier(registryRoot, vid).programVKey;
+    function _checkAdapterIdentity(
+        address adapterAddr,
+        IPrfVerifierRegistry.VerifierEntry memory entry
+    ) private view {
+        IPrfStatementVerifierAdapter adapter = IPrfStatementVerifierAdapter(adapterAddr);
+        if (
+            adapter.programVKey() != entry.programVKey ||
+            adapter.programElfSha256() != entry.programElfSha256 ||
+            adapter.statementSchemaVersion() != entry.statementSchemaVersionHash ||
+            adapter.publicValuesSchema() != entry.publicValuesSchema
+        ) revert AdapterIdentityMismatch(adapterAddr);
     }
 
     function _verifyProof(
@@ -172,8 +199,8 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
         bytes calldata proof,
         bytes calldata publicValues
     ) private view returns (bytes32) {
-        PrfRealizedAllocationVerifierAdapter adapter =
-            PrfRealizedAllocationVerifierAdapter(adapterAddr);
+        IPrfStatementVerifierAdapter adapter =
+            IPrfStatementVerifierAdapter(adapterAddr);
 
         bytes32 extractedRoot;
         try adapter.verifyStatementProof(statementRoot, proof, publicValues)
@@ -190,24 +217,40 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
         return extractedRoot;
     }
 
-    function _emitAdmission(
-        address adapterAddr,
-        bytes32 vkey,
+    /// @dev This is an EVM-local admission identity, not a proof-bytes identity.
+    ///      It binds the successful admission to the immutable contract instance and
+    ///      every verifier/configuration fact captured in the durable receipt.
+    function _admissionReceiptId(
+        bytes32 registryRoot,
+        bytes32 verifierId,
+        IPrfVerifierRegistry.VerifierEntry memory entry,
         bytes32 statementRoot,
         bytes32 publicValuesDigest
-    ) private {
-        bytes32 domainSender = keccak256(abi.encodePacked(ADMISSION_DOMAIN, msg.sender));
-        bytes32 proofArtifactId = keccak256(abi.encodePacked(domainSender, statementRoot, publicValuesDigest));
-        uint256 index = admittedCount++;
-
-        emit StatementAdmitted(
+    ) private view returns (bytes32) {
+        bytes32 authoritySnapshot = keccak256(abi.encode(
+            protocolGenesisRoot,
+            chainInstanceGenesisRoot,
+            expectedConfigurationRoot,
+            expectedConfigurationEpoch,
+            registryRoot
+        ));
+        bytes32 verifierSnapshot = keccak256(abi.encode(
+            verifierId,
+            entry.adapter,
+            entry.programVKey,
+            entry.programElfSha256,
+            entry.statementSchemaVersionHash,
+            entry.publicValuesSchema
+        ));
+        return keccak256(abi.encode(
+            ADMISSION_DOMAIN,
+            address(this),
+            block.chainid,
+            authoritySnapshot,
+            verifierSnapshot,
             statementRoot,
-            proofArtifactId,
-            publicValuesDigest,
-            adapterAddr,
-            vkey,
-            index
-        );
+            publicValuesDigest
+        ));
     }
 
     function supportsInterface(bytes4 interfaceId)

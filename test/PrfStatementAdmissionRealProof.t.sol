@@ -10,6 +10,8 @@ import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
 import {PrfRealizedAllocationVerifierAdapter} from "../src/PrfRealizedAllocationVerifierAdapter.sol";
 import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
 import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
+import {PrfAssuredOperationConsumer} from "../src/PrfAssuredOperationConsumer.sol";
+import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
 import {IPrfVerifierRegistry} from "../src/interfaces/IPrfVerifierRegistry.sol";
 import {ISP1Verifier} from "../src/ISP1Verifier.sol";
 
@@ -228,35 +230,49 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
-        vm.expectEmit(true, true, true, true);
-        emit PrfStatementAdmission.StatementAdmitted(
-            realStatementRoot,
-            keccak256(abi.encodePacked(
-                keccak256(abi.encodePacked(
-                    keccak256("PRF_STATEMENT_ADMISSION_V1"),
-                    address(this)
-                )),
-                realStatementRoot,
-                pvDigest
-            )),
-            pvDigest,
-            address(realAdapter),
-            FIXTURE_VKEY,
-            0
-        );
-
-        uint256 index = admission.admitStatement(
+        bytes32 receiptId = admission.admitStatement(
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
 
-        assertEq(index, 0);
+        assertTrue(receiptId != bytes32(0));
+        IPrfStatementAdmission.AdmissionReceipt memory receipt = admission.admissionReceipt(receiptId);
+        assertTrue(receipt.exists);
+        assertEq(receipt.statementRoot, realStatementRoot);
+        assertEq(receipt.publicValuesDigest, sha256(realPublicValues));
+        assertEq(receipt.verifierId, REALIZED_ALLOC_VERIFIER_ID);
+        assertEq(receipt.verifierAdapter, address(realAdapter));
+        assertEq(receipt.programVKey, FIXTURE_VKEY);
         assertEq(admission.admittedCount(), 1);
+    }
+
+    function test_R1_RealProofAdmission_EnforcesMatchingOperation() public {
+        PrfStatementAdmission admission = new PrfStatementAdmission(
+            genesis,
+            executor,
+            registry,
+            CONFIG_ROOT_1,
+            1
+        );
+        PrfAssuredOperationConsumer consumer = new PrfAssuredOperationConsumer(
+            IPrfStatementAdmission(address(admission)),
+            address(this)
+        );
+        bytes32 operationId = keccak256("real-proof-operation");
+        consumer.createOperation(operationId, realStatementRoot, CONFIG_ROOT_1, 1);
+
+        bytes32 receiptId = admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            realStatementRoot,
+            realProof,
+            realPublicValues
+        );
+        consumer.applyOperation(operationId, receiptId);
+
+        assertTrue(consumer.operation(operationId).applied);
+        assertEq(consumer.operation(operationId).admissionReceiptId, receiptId);
     }
 
     function test_R1_VerifierBoundToExactConfigRoot() public {
@@ -268,8 +284,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ConfigurationMismatch.selector,
             CONFIG_ROOT_0,
@@ -279,8 +293,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -299,8 +312,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
         }
         tamperedProof[0] ^= 0x01;
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ProofVerificationFailed.selector
         ));
@@ -308,8 +319,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             tamperedProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -328,8 +338,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
         }
         tamperedPv[0] ^= 0x01;
 
-        bytes32 tamperedPvDigest = sha256(tamperedPv);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ProofVerificationFailed.selector
         ));
@@ -337,8 +345,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            tamperedPv,
-            tamperedPvDigest
+            tamperedPv
         );
     }
 
@@ -351,8 +358,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ProofVerificationFailed.selector
         ));
@@ -360,8 +365,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             WRONG_VKEY_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -374,8 +378,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ProofVerificationFailed.selector
         ));
@@ -383,8 +385,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             WRONG_STATEMENT_ROOT,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -397,8 +398,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             999
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.EpochMismatch.selector,
             uint64(999),
@@ -408,8 +407,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -422,8 +420,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             IPrfVerifierRegistry.VerifierNotFound.selector,
             VERIFIER_REGISTRY_ROOT_1,
@@ -433,8 +429,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             WRONG_VERIFIER_ID,
             realStatementRoot,
             realProof,
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
@@ -447,8 +442,6 @@ contract PrfStatementAdmissionRealProofTest is Test {
             1
         );
 
-        bytes32 pvDigest = sha256(realPublicValues);
-
         vm.expectRevert(abi.encodeWithSelector(
             PrfStatementAdmission.ProofVerificationFailed.selector
         ));
@@ -456,8 +449,7 @@ contract PrfStatementAdmissionRealProofTest is Test {
             REALIZED_ALLOC_VERIFIER_ID,
             realStatementRoot,
             new bytes(0),
-            realPublicValues,
-            pvDigest
+            realPublicValues
         );
     }
 
