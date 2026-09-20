@@ -14,6 +14,7 @@ contract OnchainShortfallReserveV1 {
     IERC20 public immutable token;
     address public immutable applicationAuthority;
     uint256 public immutable protectedCapital;
+    uint64 public immutable reservationWindowSeconds;
 
     ProductionProRataAllocatorV1 public allocator;
     bool public allocatorBound;
@@ -27,10 +28,11 @@ contract OnchainShortfallReserveV1 {
         uint256 amount;
     }
 
-    enum ShortfallOperationState { None, Active, Funded }
+    enum ShortfallOperationState { None, Active, Funded, Cancelled, Expired }
     struct ShortfallOperation {
         ShortfallOperationState state;
         uint64 snapshotId;
+        uint64 reservationDeadline;
         uint256 amount;
         bool allocatorConfigured;
         bool allocatorActivated;
@@ -66,6 +68,8 @@ contract OnchainShortfallReserveV1 {
     error TokenDeltaMismatch();
     error AllowanceMismatch();
     error Reentrant();
+        error ReservationNotExpired();
+        error CannotCancelFunded();
 
     modifier onlyApplicationAuthority() {
         if (msg.sender != applicationAuthority) {
@@ -99,14 +103,17 @@ contract OnchainShortfallReserveV1 {
     event AllocatorOperationCreated(bytes32 indexed operationId);
     event AllocatorOperationActivated(bytes32 indexed operationId, bytes32 indexed receiptId);
     event ShortfallFunded(bytes32 indexed operationId, uint256 amount);
+        event ShortfallCancelled(bytes32 indexed operationId, uint256 amount);
+        event ShortfallExpired(bytes32 indexed operationId, uint256 amount);
 
-    constructor(IERC20 token_, address applicationAuthority_, uint256 protectedCapital_) {
-        if (address(token_) == address(0) || applicationAuthority_ == address(0)) {
+    constructor(IERC20 token_, address applicationAuthority_, uint256 protectedCapital_, uint64 reservationWindow_) {
+        if (address(token_) == address(0) || applicationAuthority_ == address(0) || reservationWindow_ == 0) {
             revert ZeroValue();
         }
         token = token_;
         applicationAuthority = applicationAuthority_;
         protectedCapital = protectedCapital_;
+        reservationWindowSeconds = reservationWindow_;
     }
 
     function bindAllocator(ProductionProRataAllocatorV1 allocator_) external onlyApplicationAuthority {
@@ -205,6 +212,7 @@ contract OnchainShortfallReserveV1 {
         shortfallOperations[operationId] = ShortfallOperation(
             ShortfallOperationState.Active,
             snapshotId,
+            uint64(block.timestamp) + reservationWindowSeconds,
             available,
             false,
             false
@@ -284,7 +292,32 @@ contract OnchainShortfallReserveV1 {
         emit AllocatorOperationActivated(operationId, receiptId);
     }
 
-    function fundOperation(bytes32 operationId) external nonReentrant {
+    function cancelShortfallOperation(bytes32 operationId) external onlyApplicationAuthority nonReentrant {
+        _terminateShortfallOperation(operationId, false);
+    }
+
+    /// @notice Permissionless terminalization after the immutable reservation deadline.
+    function expireShortfallOperation(bytes32 operationId) external nonReentrant {
+        _terminateShortfallOperation(operationId, true);
+    }
+
+    function _terminateShortfallOperation(bytes32 operationId, bool expired) private {
+        ShortfallOperation storage operation = shortfallOperations[operationId];
+        if (operation.state != ShortfallOperationState.Active || operation.allocatorActivated) revert CannotCancelFunded();
+        if (expired && block.timestamp < operation.reservationDeadline) revert ReservationNotExpired();
+        if (operation.allocatorConfigured) {
+            ProductionProRataAllocatorV1.Operation memory allocatorOperation = allocator.operation(operationId);
+            if (allocatorOperation.state != ProductionProRataAllocatorV1.State.Created) revert AllocatorMismatch();
+            allocator.cancel(operationId);
+        }
+        totalReserved -= operation.amount;
+        activeShortfallOperationId = bytes32(0);
+        operation.state = expired ? ShortfallOperationState.Expired : ShortfallOperationState.Cancelled;
+        if (expired) emit ShortfallExpired(operationId, operation.amount);
+        else emit ShortfallCancelled(operationId, operation.amount);
+    }
+
+        function fundOperation(bytes32 operationId) external nonReentrant {
         if (!allocatorBound || operationId != activeShortfallOperationId) revert InvalidOperation();
         ShortfallOperation storage operation = shortfallOperations[operationId];
         if (operation.state != ShortfallOperationState.Active || !operation.allocatorConfigured) {

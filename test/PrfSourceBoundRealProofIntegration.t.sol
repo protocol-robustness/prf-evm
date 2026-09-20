@@ -53,7 +53,7 @@ contract PrfSourceBoundRealProofIntegrationTest is Test {
         token = new SourceBoundIntegrationTestToken();
         sp1 = new SP1Verifier();
         adapter = new PrfSourceBoundStatementVerifierAdapter(ISP1Verifier(address(sp1)), VKEY, ELF_SHA256);
-        reserve = new OnchainShortfallReserveV1(token, address(this), 20);
+        reserve = new OnchainShortfallReserveV1(token, address(this), 20, 1 days);
         allocator = new ProductionProRataAllocatorV1(IPrfStatementAdmission(address(1)), address(reserve));
         reserve.bindAllocator(allocator);
         token.mint(address(this), 100);

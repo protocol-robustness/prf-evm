@@ -11,7 +11,7 @@ import {ProductionProRataAllocatorV1} from "../pro-rata/ProductionProRataAllocat
 /// @dev The controller is the reserve applicationAuthority. It owns no funds and
 ///      performs no allocation arithmetic.
 contract SourceBoundProRataControllerV1 {
-    enum State { None, ReserveLocked, SourceAssured, AllocatorConfigured, ExecutionActivated }
+    enum State { None, ReserveLocked, SourceAssured, AllocatorConfigured, ExecutionActivated, Cancelled, Expired }
 
     IPrfStatementAdmission public immutable admission;
     OnchainShortfallReserveV1 public immutable reserve;
@@ -139,7 +139,22 @@ contract SourceBoundProRataControllerV1 {
         reserve.fundOperation(operationId);
     }
 
-    function activate(bytes32 operationId, bytes32 receiptId, bytes calldata publicValues) external {
+    function cancelOperation(bytes32 operationId) external {
+            if (msg.sender != operationInitiator) revert OnlyOperationInitiator(msg.sender);
+            State current = state[operationId];
+            if (current != State.ReserveLocked && current != State.SourceAssured && current != State.AllocatorConfigured) revert InvalidState(current);
+            reserve.cancelShortfallOperation(operationId);
+            state[operationId] = State.Cancelled;
+        }
+
+        function expireOperation(bytes32 operationId) external {
+            State current = state[operationId];
+            if (current != State.ReserveLocked && current != State.SourceAssured && current != State.AllocatorConfigured) revert InvalidState(current);
+            reserve.expireShortfallOperation(operationId);
+            state[operationId] = State.Expired;
+        }
+
+        function activate(bytes32 operationId, bytes32 receiptId, bytes calldata publicValues) external {
         if (state[operationId] != State.AllocatorConfigured) revert InvalidState(state[operationId]);
         Assurance memory a = assurance[operationId];
         IPrfStatementAdmission.AdmissionReceipt memory r = admission.admissionReceipt(receiptId);

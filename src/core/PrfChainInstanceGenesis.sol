@@ -4,7 +4,7 @@ pragma solidity ^0.8.33;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
-import {ISewGovernanceAuthority} from "../interfaces/ISewGovernanceAuthority.sol";
+import {IPrfAuthority} from "../interfaces/IPrfAuthority.sol";
 
 /// @title PrfChainInstanceGenesis
 /// @notice Sealed anchor for a concrete EVM execution instance of one PRF/SEW protocol genesis.
@@ -76,7 +76,7 @@ contract PrfChainInstanceGenesis is ERC165, IPrfChainInstanceGenesis {
         if (authorityAdapter_ == address(0) || sealer_ == address(0)) revert ZeroAddress();
         if (authorityAdapter_.code.length == 0) revert AuthorityAdapterHasNoCode(authorityAdapter_);
 
-        ISewGovernanceAuthority authority = ISewGovernanceAuthority(authorityAdapter_);
+        IPrfAuthority authority = IPrfAuthority(authorityAdapter_);
         if (authority.protocolGenesisRoot() != protocolGenesisRoot_) {
             revert AuthorityProtocolMismatch(
                 protocolGenesisRoot_,

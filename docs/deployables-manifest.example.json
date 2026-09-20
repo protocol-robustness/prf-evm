@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@protocol-robustness/prf-evm-deployables",
+  "bundleVersion": "0.1.0",
+  "source": {
+    "repository": "protocol-robustness/prf-evm",
+    "commit": "1b37c3661e0c2c02d78b27f1ccca38d484a93bf6",
+    "commitSource": "git",
+    "commitOverride": false,
+    "dirty": false
+  },
+  "build": {
+    "artifactSource": "forge",
+    "profile": "default",
+    "compiler": { "name": "solc", "version": "0.8.33+commit.64118f21" },
+    "settings": { "evmVersion": "osaka", "optimizerRuns": 200, "viaIR": true }
+  },
+  "artifacts": {
+    "PrfStatementAdmission": {
+      "contractName": "PrfStatementAdmission",
+      "sourcePath": "src/core/PrfStatementAdmission.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "artifactFile": "artifacts/PrfStatementAdmission.json",
+      "abiSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "creationBytecodeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "runtimeBytecodeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "constructorAbiSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hasLinkReferences": false,
+      "hasDeployedLinkReferences": false
+    },
+    "PrfRealizedAllocationVerifierAdapter": {
+      "contractName": "PrfRealizedAllocationVerifierAdapter",
+      "sourcePath": "src/verification/adapters/PrfRealizedAllocationVerifierAdapter.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      },
+      "artifactFile": "artifacts/PrfRealizedAllocationVerifierAdapter.json",
+      "abiSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "creationBytecodeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "runtimeBytecodeSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "constructorAbiSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hasLinkReferences": false,
+      "hasDeployedLinkReferences": false
+    }
+  },
+  "bundleRoot": "0000000000000000000000000000000000000000000000000000000000000000"
+}

@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@protocol-robustness/prf-evm-deployables",
+  "bundleVersion": "0.1.0",
+  "buildArtifactSource": "forge",
+  "buildProfile": "default",
+  "entries": [
+    {
+      "artifactName": "LocalSnapshotToken",
+      "contractName": "LocalSnapshotToken",
+      "sourcePath": "src/LocalShortfallSnapshot.s.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "origin": "prf",
+      "notes": "Local-only synthetic ERC-20 fixture; never a production registry root."
+    },
+    {
+      "artifactName": "PrfLocalAuthorityAdapter",
+      "contractName": "PrfLocalAuthorityAdapter",
+      "sourcePath": "src/core/PrfLocalAuthorityAdapter.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "origin": "prf",
+      "notes": "Neutral local PRF authority adapter; synthetic bootstrap authority only."
+    },
+    {
+      "artifactName": "PrfChainInstanceGenesis",
+      "contractName": "PrfChainInstanceGenesis",
+      "sourcePath": "src/core/PrfChainInstanceGenesis.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "notes": "Chain-instance genesis root; immutable protocol identity."
+    },
+    {
+      "artifactName": "PrfConfigurationSnapshot",
+      "contractName": "PrfConfigurationSnapshot",
+      "sourcePath": "src/core/PrfConfigurationSnapshot.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "notes": "Configuration snapshot."
+    },
+    {
+      "artifactName": "PrfEvidenceAnchor",
+      "contractName": "PrfEvidenceAnchor",
+      "sourcePath": "src/core/PrfEvidenceAnchor.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "notes": "Evidence anchor."
+    },
+    {
+      "artifactName": "PrfStatementAdmission",
+      "contractName": "PrfStatementAdmission",
+      "sourcePath": "src/core/PrfStatementAdmission.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "notes": "Generic admission gateway for registered PRF statement proofs."
+    },
+    {
+      "artifactName": "PrfVerifierRegistry",
+      "contractName": "PrfVerifierRegistry",
+      "sourcePath": "src/core/PrfVerifierRegistry.sol",
+      "scopeHint": "prf",
+      "category": "core",
+      "notes": "Versioned, immutable verifier-registry snapshots keyed by canonical registry root."
+    },
+    {
+      "artifactName": "GovGovernor",
+      "contractName": "GovGovernor",
+      "sourcePath": "src/governance/GovGovernor.sol",
+      "scopeHint": "prf",
+      "category": "governance",
+      "notes": "PRF governance governor."
+    },
+    {
+      "artifactName": "ProductionProRataAllocatorV1",
+      "contractName": "ProductionProRataAllocatorV1",
+      "sourcePath": "src/applications/pro-rata/ProductionProRataAllocatorV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Production pro-rata allocator application."
+    },
+    {
+      "artifactName": "ProductionProRataAllocatorV2",
+      "contractName": "ProductionProRataAllocatorV2",
+      "sourcePath": "src/applications/pro-rata/ProductionProRataAllocatorV2.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "V2 source-bound Shortfall allocator custody successor; create/fund only."
+    },
+    {
+      "artifactName": "OnchainShortfallReserveV1",
+      "contractName": "OnchainShortfallReserveV1",
+      "sourcePath": "src/applications/shortfall/OnchainShortfallReserveV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "On-chain shortfall reserve application."
+    },
+    {
+      "artifactName": "OnchainShortfallReserveV2",
+      "contractName": "OnchainShortfallReserveV2",
+      "sourcePath": "src/applications/shortfall/OnchainShortfallReserveV2.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "V2 source-bound Shortfall reserve ratification and custody boundary."
+    },
+    {
+      "artifactName": "SourceBoundProRataControllerV2",
+      "contractName": "SourceBoundProRataControllerV2",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataControllerV2.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "V2 prepared-operation controller."
+    },
+    {
+      "artifactName": "SourceBoundProRataAssuranceV2",
+      "contractName": "SourceBoundProRataAssuranceV2",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataAssuranceV2.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "V2 source-assurance admission and one-shot controller handoff."
+    },
+    {
+      "artifactName": "SourceBoundProRataRatificationControllerV2",
+      "contractName": "SourceBoundProRataRatificationControllerV2",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataRatificationControllerV2.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "V2 atomic source-assurance to reserve ratification controller."
+    },
+    {
+      "artifactName": "SourceBoundProRataControllerV1",
+      "contractName": "SourceBoundProRataControllerV1",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataControllerV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Source-bound pro-rata controller application."
+    },
+    {
+      "artifactName": "PrfAssuredOperationConsumer",
+      "contractName": "PrfAssuredOperationConsumer",
+      "sourcePath": "src/consumers/PrfAssuredOperationConsumer.sol",
+      "scopeHint": "prf",
+      "category": "consumer",
+      "notes": "Assured-operation consumer."
+    },
+    {
+      "artifactName": "PrfRealizedAllocationVerifierAdapter",
+      "contractName": "PrfRealizedAllocationVerifierAdapter",
+      "sourcePath": "src/verification/adapters/PrfRealizedAllocationVerifierAdapter.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "notes": "SP1 verifier adapter: realized-allocation statement family.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "PrfRealizedExecutionVerifierAdapter",
+      "contractName": "PrfRealizedExecutionVerifierAdapter",
+      "sourcePath": "src/verification/adapters/PrfRealizedExecutionVerifierAdapter.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "notes": "SP1 verifier adapter: realized-execution statement family.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "PrfSourceBoundStatementVerifierAdapter",
+      "contractName": "PrfSourceBoundStatementVerifierAdapter",
+      "sourcePath": "src/verification/adapters/PrfSourceBoundStatementVerifierAdapter.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "notes": "SP1 verifier adapter: source-bound (onchain-shortfall-allocation-binding) statement family.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "PrfSourceBoundStatementVerifierAdapterV2",
+      "contractName": "PrfSourceBoundStatementVerifierAdapterV2",
+      "sourcePath": "src/verification/adapters/PrfSourceBoundStatementVerifierAdapterV2.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "notes": "V2 SP1 verifier adapter for the exact 192-byte source-bound allocation-binding statement family.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "SP1MockVerifier",
+      "contractName": "SP1MockVerifier",
+      "sourcePath": "lib/sp1-contracts/contracts/src/SP1MockVerifier.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "origin": "sp1",
+      "notes": "Upstream SP1 mock verifier for local-only deployment profiles; never a production verifier binding.",
+      "verifier": {
+        "family": "sp1-mock",
+        "configMechanism": "accepts only empty local test proofs",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "SewConfigurationExecutor",
+      "contractName": "SewConfigurationExecutor",
+      "sourcePath": "src/integrations/sew/SewConfigurationExecutor.sol",
+      "scopeHint": "prf",
+      "category": "integration",
+      "notes": "PRF-side configuration executor integrating with SEW governance. PRF-side fact only."
+    },
+    {
+      "artifactName": "SewGovernanceAuthorityAdapter",
+      "contractName": "SewGovernanceAuthorityAdapter",
+      "sourcePath": "src/integrations/sew/SewGovernanceAuthorityAdapter.sol",
+      "scopeHint": "prf",
+      "category": "integration",
+      "notes": "PRF-side governance authority adapter integrating with SEW. PRF-side fact only."
+    }
+  ]
+}

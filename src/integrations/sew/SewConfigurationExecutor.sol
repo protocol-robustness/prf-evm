@@ -7,7 +7,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 
 import {IPrfChainInstanceGenesis} from "../../interfaces/IPrfChainInstanceGenesis.sol";
 import {IPrfConfigurationExecutor} from "../../interfaces/IPrfConfigurationExecutor.sol";
-import {ISewGovernanceAuthority} from "../../interfaces/ISewGovernanceAuthority.sol";
+import {IPrfAuthority} from "../../interfaces/IPrfAuthority.sol";
 import {IPrfVerifierRegistry} from "../../interfaces/IPrfVerifierRegistry.sol";
 
 /// @title SewConfigurationExecutor
@@ -23,7 +23,7 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
         keccak256("PRF_EEZ_TARGET_INSTANCE_LEAF_V1");
 
     IPrfChainInstanceGenesis public immutable genesis;
-    ISewGovernanceAuthority public immutable authority;
+    IPrfAuthority public immutable authority;
     IPrfVerifierRegistry public immutable verifierRegistry;
 
     bytes32 public immutable override chainInstanceGenesisRoot;
@@ -59,7 +59,7 @@ contract SewConfigurationExecutor is ERC165, IPrfConfigurationExecutor {
 
     constructor(
         IPrfChainInstanceGenesis genesis_,
-        ISewGovernanceAuthority authority_,
+        IPrfAuthority authority_,
         IPrfVerifierRegistry verifierRegistry_,
         bytes32 initialVerifierRegistryRoot_
     ) {

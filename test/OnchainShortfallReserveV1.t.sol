@@ -22,10 +22,11 @@ contract OnchainShortfallReserveV1Test is Test {
     bytes32 constant STATEMENT = keccak256("statement");
     bytes32 constant CONFIG = keccak256("configuration");
     uint256 constant PROTECTED = 10;
+        uint64 constant RESERVATION_WINDOW_SECONDS = 1 days;
 
     function setUp() public {
         token = new ReserveTestToken();
-        reserve = new OnchainShortfallReserveV1(token, authority, PROTECTED);
+        reserve = new OnchainShortfallReserveV1(token, authority, PROTECTED, RESERVATION_WINDOW_SECONDS);
         allocator = new ProductionProRataAllocatorV1(
             IPrfStatementAdmission(address(1)),
             address(reserve)
@@ -60,6 +61,8 @@ contract OnchainShortfallReserveV1Test is Test {
         assertEq(reserve.totalReserved(), 90);
         assertEq(reserve.activeShortfallOperationId(), OP);
         assertEq(snapshotHash, reserve.snapshotHash(snapshotId));
+        (, , uint64 deadline, , , ) = reserve.shortfallOperations(OP);
+        assertEq(deadline, uint64(block.timestamp) + RESERVATION_WINDOW_SECONDS);
         assertEq(token.balanceOf(address(reserve)), 100);
     }
 
@@ -85,6 +88,19 @@ contract OnchainShortfallReserveV1Test is Test {
             )
         );
         reserve.lockAvailableFor(OTHER_OP);
+    }
+
+    function test_ReservationDeadlineIsNotRenewedByAllocatorConfiguration() public {
+        _deposit(100);
+        vm.prank(authority);
+        reserve.lockAvailableFor(OP);
+        (, , uint64 deadlineAtLock, , , ) = reserve.shortfallOperations(OP);
+
+        vm.prank(authority);
+        reserve.createAllocatorOperation(OP, STATEMENT, CONFIG, 7, address(0xBEEF));
+        (, , uint64 deadlineAfterConfiguration, , , ) = reserve.shortfallOperations(OP);
+
+        assertEq(deadlineAfterConfiguration, deadlineAtLock);
     }
 
     function test_CreateForwardingUsesSnapshotTokenAndAmount() public {
@@ -119,7 +135,83 @@ contract OnchainShortfallReserveV1Test is Test {
         assertEq(allocator.operation(OP).funder, address(reserve));
     }
 
-    function test_FundingCannotBeRepeated() public {
+    function test_PermissionlessExpiryReleasesReservation() public {
+            _deposit(100);
+            vm.prank(authority);
+            reserve.lockAvailableFor(OP);
+            vm.warp(block.timestamp + RESERVATION_WINDOW_SECONDS);
+
+            reserve.expireShortfallOperation(OP);
+
+            assertEq(reserve.totalReserved(), 0);
+            assertEq(reserve.activeShortfallOperationId(), bytes32(0));
+            assertEq(uint8(_shortfallState(OP)), uint8(OnchainShortfallReserveV1.ShortfallOperationState.Expired));
+        }
+
+        function test_ExpiryBeforeDeadlineReverts() public {
+            _deposit(100);
+            vm.prank(authority);
+            reserve.lockAvailableFor(OP);
+            vm.expectRevert(OnchainShortfallReserveV1.ReservationNotExpired.selector);
+            reserve.expireShortfallOperation(OP);
+        }
+
+        function test_CancelWithCreatedAllocatorReleasesBothSides() public {
+            _deposit(100);
+            vm.prank(authority);
+            reserve.lockAvailableFor(OP);
+            vm.prank(authority);
+            reserve.createAllocatorOperation(OP, STATEMENT, CONFIG, 7, address(0xBEEF));
+
+            vm.prank(authority);
+            reserve.cancelShortfallOperation(OP);
+
+            assertEq(reserve.totalReserved(), 0);
+            assertEq(reserve.activeShortfallOperationId(), bytes32(0));
+            assertEq(uint256(allocator.operation(OP).state), uint256(ProductionProRataAllocatorV1.State.Cancelled));
+        }
+
+    function test_ExpiryCannotRunAfterFunding() public {
+        _deposit(100);
+        vm.prank(authority); reserve.lockAvailableFor(OP);
+        vm.prank(authority); reserve.createAllocatorOperation(OP, STATEMENT, CONFIG, 7, address(0xBEEF));
+        reserve.fundOperation(OP);
+        vm.expectRevert(OnchainShortfallReserveV1.CannotCancelFunded.selector);
+        reserve.expireShortfallOperation(OP);
+    }
+
+    function test_CancelCannotRunAfterFunding() public {
+        _deposit(100);
+        vm.prank(authority); reserve.lockAvailableFor(OP);
+        vm.prank(authority); reserve.createAllocatorOperation(OP, STATEMENT, CONFIG, 7, address(0xBEEF));
+        reserve.fundOperation(OP);
+        vm.prank(authority);
+        vm.expectRevert(OnchainShortfallReserveV1.CannotCancelFunded.selector);
+        reserve.cancelShortfallOperation(OP);
+    }
+
+    function test_TerminalOperationsAreNotReplayable() public {
+        _deposit(100);
+        vm.prank(authority); reserve.lockAvailableFor(OP);
+        vm.prank(authority); reserve.cancelShortfallOperation(OP);
+        vm.expectRevert(OnchainShortfallReserveV1.CannotCancelFunded.selector);
+        reserve.expireShortfallOperation(OP);
+        vm.prank(authority);
+        vm.expectRevert(OnchainShortfallReserveV1.CannotCancelFunded.selector);
+        reserve.cancelShortfallOperation(OP);
+    }
+
+    function test_ExpireWinsAtDeadlineAndFundingCannotFollow() public {
+        _deposit(100);
+        vm.prank(authority); reserve.lockAvailableFor(OP);
+        vm.prank(authority); reserve.createAllocatorOperation(OP, STATEMENT, CONFIG, 7, address(0xBEEF));
+        vm.warp(block.timestamp + RESERVATION_WINDOW_SECONDS);
+        reserve.expireShortfallOperation(OP);
+        vm.expectRevert(OnchainShortfallReserveV1.InvalidOperation.selector);
+        reserve.fundOperation(OP);
+    }
+
+        function test_FundingCannotBeRepeated() public {
         _deposit(100);
         vm.prank(authority);
         reserve.lockAvailableFor(OP);
@@ -145,11 +237,11 @@ contract OnchainShortfallReserveV1Test is Test {
     }
 
     function _allocatorConfigured(bytes32 operationId) internal view returns (bool configured) {
-        (,,, configured,) = reserve.shortfallOperations(operationId);
+        (,,,, configured,) = reserve.shortfallOperations(operationId);
     }
 
     function _shortfallState(bytes32 operationId) internal view returns (OnchainShortfallReserveV1.ShortfallOperationState state) {
-        (state,,,,) = reserve.shortfallOperations(operationId);
+        (state,,,,,) = reserve.shortfallOperations(operationId);
     }
 
     function _snapshotAvailable(uint64 snapshotId) internal view returns (uint256 available) {

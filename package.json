@@ -1,0 +1,22 @@
+{
+  "name": "prf-evm",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "PRF EVM deployable-artifact export. Foundry-native; consumes the forge build output and emits a deterministic deployable bundle for the shared deployment repository.",
+  "scripts": {
+    "compile": "forge build && forge build lib/sp1-contracts/contracts/src/SP1MockVerifier.sol",
+    "test": "forge test",
+    "deployables:export": "ts-node scripts/export-deployables.ts",
+    "deployables:validate": "ts-node scripts/validate-deployables.ts",
+    "deployables:test": "ts-node scripts/test-deployables.ts",
+    "deployables:pack": "ts-node scripts/pack-deployables.ts",
+    "deployables:all": "pnpm deployables:export && pnpm deployables:validate && pnpm deployables:test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.9.0"
+  }
+}

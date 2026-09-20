@@ -8,6 +8,7 @@ import {
     ISewGovernanceAuthority,
     ISewGovernanceAuthorityAdmin
 } from "../../interfaces/ISewGovernanceAuthority.sol";
+import {IPrfAuthority} from "../../interfaces/IPrfAuthority.sol";
 
 /// @title SewGovernanceAuthorityAdapter
 /// @notice Thin PRF compatibility layer controlled by the SEW Governor contract.
@@ -21,7 +22,7 @@ import {
 /// The DecisionAuthorization struct now binds parent/new verifier-registry roots
 /// alongside the parent/new configuration roots, preventing a relayer from decoupling
 /// configuration root C from verifier-registry root R.
-contract SewGovernanceAuthorityAdapter is ERC165, ISewGovernanceAuthorityAdmin {
+contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceAuthorityAdmin {
     uint8 public constant TARGET_DIRECT = 0;
     uint8 public constant TARGET_SET = 1;
 

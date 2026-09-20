@@ -284,6 +284,25 @@ FOUNDRY_PROFILE=test forge test --match-contract PrfAssuredOperationConsumerTest
 
 The 64-test suite (all passing) covers genesis sealing, configuration-authorisation, verifier-registry canonical-root sealing and immutability, and the statement-admission rejection matrix. Verified rejection categories include: wrong configuration root, wrong epoch, stale parent, consumed decision, unsealed/forged registry root, wrong verifier identity, correct-proof-with-wrong-schema identity, tampered/malformed public values, statement-root mismatch, tampered proof bytes, inactive verifier, and mock-vs-real proof incompatibility. See `fixtures/realized-statement-proof-fixture.json` for the real-prover proof fixture.
 
+## Deployable artifact export
+
+`prf-evm` stays authoritative for PRF source/compile/tests/bytecode. A
+deterministic deployable-artifact bundle (for the shared deployment repo to
+consume **without recompiling** PRF source) is produced by:
+
+```bash
+forge build               # native compile
+npm run deployables:export
+npm run deployables:validate
+npm run deployables:test
+npm run deployables:pack
+```
+
+See [docs/deployables-export.md](docs/deployables-export.md) (design, manifest
+schema, local consumption) and [docs/canonical-identity-boundary.md](docs/canonical-identity-boundary.md)
+(which canonical verifier/program/profile identities remain externally
+authoritative).
+
 ## What this package does not provide
 
 ### Provided by other PRF components
