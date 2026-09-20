@@ -4,16 +4,16 @@ pragma solidity ^0.8.33;
 import {Test} from "forge-std/Test.sol";
 
 import {SP1Verifier} from "@sp1-contracts/v6.1.0/SP1VerifierGroth16.sol";
-import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
-import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {PrfRealizedAllocationVerifierAdapter} from "../src/PrfRealizedAllocationVerifierAdapter.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
-import {PrfAssuredOperationConsumer} from "../src/PrfAssuredOperationConsumer.sol";
+import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
+import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {PrfRealizedAllocationVerifierAdapter} from "../src/verification/adapters/PrfRealizedAllocationVerifierAdapter.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
+import {PrfAssuredOperationConsumer} from "../src/consumers/PrfAssuredOperationConsumer.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
 import {IPrfVerifierRegistry} from "../src/interfaces/IPrfVerifierRegistry.sol";
-import {ISP1Verifier} from "../src/ISP1Verifier.sol";
+import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
 
 /// @title PrfStatementAdmissionRealProofTest
 /// @notice Positive and negative conformance tests that exercise the ACTUAL

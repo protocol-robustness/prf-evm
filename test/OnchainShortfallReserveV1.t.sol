@@ -4,8 +4,8 @@ pragma solidity ^0.8.33;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
-import {ProductionProRataAllocatorV1} from "../src/ProductionProRataAllocatorV1.sol";
-import {OnchainShortfallReserveV1} from "../src/OnchainShortfallReserveV1.sol";
+import {ProductionProRataAllocatorV1} from "../src/applications/pro-rata/ProductionProRataAllocatorV1.sol";
+import {OnchainShortfallReserveV1} from "../src/applications/shortfall/OnchainShortfallReserveV1.sol";
 
 contract ReserveTestToken is ERC20 {
     constructor() ERC20("Reserve Test", "RST") {}

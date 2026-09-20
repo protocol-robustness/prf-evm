@@ -3,8 +3,8 @@ pragma solidity ^0.8.33;
 
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
-import {IPrfEvidenceAnchor} from "./interfaces/IPrfEvidenceAnchor.sol";
+import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
+import {IPrfEvidenceAnchor} from "../interfaces/IPrfEvidenceAnchor.sol";
 
 /// @title PrfEvidenceAnchor
 /// @notice Permissionless immutable anchoring of PRF evidence commitments.

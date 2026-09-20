@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.33;
 
-import {ISP1Verifier} from "./ISP1Verifier.sol";
-import {IPrfStatementVerifierAdapter} from "./interfaces/IPrfStatementVerifierAdapter.sol";
+import {ISP1Verifier} from "../interfaces/ISP1Verifier.sol";
+import {IPrfStatementVerifierAdapter} from "../../interfaces/IPrfStatementVerifierAdapter.sol";
 
 /// @title PrfRealizedAllocationVerifierAdapter
 /// @notice Binds the realized-allocation-statement.v1 SP1 program to the

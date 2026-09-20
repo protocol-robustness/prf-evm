@@ -3,13 +3,13 @@ pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
 
-import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
-import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {PrfRealizedAllocationVerifierAdapter} from "../src/PrfRealizedAllocationVerifierAdapter.sol";
-import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
+import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
+import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {PrfRealizedAllocationVerifierAdapter} from "../src/verification/adapters/PrfRealizedAllocationVerifierAdapter.sol";
+import {MockSP1Verifier} from "./mocks/MockSP1Verifier.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
 import {IPrfVerifierRegistry} from "../src/interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfConfigurationAuthorizationConformanceTest
@@ -65,6 +65,103 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     bytes32 internal VERIFIER_REGISTRY_ROOT_0;
     bytes32 internal VERIFIER_REGISTRY_ROOT_1;
 
+    struct VerifierSeed {
+        bytes32 id;
+        address adapter;
+        bytes32 vkey;
+        bytes32 elfHash;
+        string programId;
+        bytes32 schemaHash;
+        bytes32 pvSchema;
+        bool active;
+    }
+
+    function _customSeed(bytes32 id, address adapterAddr)
+        internal view returns (VerifierSeed memory)
+    {
+        return VerifierSeed({
+            id: id,
+            adapter: adapterAddr,
+            vkey: FIXTURE_VKEY,
+            elfHash: FIXTURE_ELF_SHA256,
+            programId: "realized-allocation-proof.v1",
+            schemaHash: keccak256("realized-allocation-statement.v1"),
+            pvSchema: FIXTURE_PV_SCHEMA_HASH,
+            active: true
+        });
+    }
+
+    function _allocSeed(address adapterAddr) internal view returns (VerifierSeed memory) {
+        return _customSeed(REALIZED_ALLOC_VERIFIER_ID, adapterAddr);
+    }
+
+    function _legacySeed(address adapterAddr) internal view returns (VerifierSeed memory) {
+        return VerifierSeed({
+            id: LEGACY_R0_ONLY_VERIFIER_ID,
+            adapter: adapterAddr,
+            vkey: FIXTURE_VKEY,
+            elfHash: FIXTURE_ELF_SHA256,
+            programId: "legacy-r0-only-proof.v1",
+            schemaHash: keccak256("legacy-r0-only-statement.v1"),
+            pvSchema: FIXTURE_PV_SCHEMA_HASH,
+            active: true
+        });
+    }
+
+    function _syntheticSeed(address adapterAddr) internal view returns (VerifierSeed memory) {
+        return VerifierSeed({
+            id: SYNTHETIC_TEST_VERIFIER_ID,
+            adapter: adapterAddr,
+            vkey: FIXTURE_VKEY,
+            elfHash: FIXTURE_ELF_SHA256,
+            programId: "synthetic-test-verifier.v1",
+            schemaHash: keccak256("synthetic-test-statement.v1"),
+            pvSchema: FIXTURE_PV_SCHEMA_HASH,
+            active: true
+        });
+    }
+
+    function _computeRoot(VerifierSeed[] memory seeds) internal returns (bytes32 root) {
+        bytes32[] memory ids = new bytes32[](seeds.length);
+        address[] memory adapters = new address[](seeds.length);
+        bytes32[] memory vkeys = new bytes32[](seeds.length);
+        bytes32[] memory elfHashes = new bytes32[](seeds.length);
+        string[] memory programIds = new string[](seeds.length);
+        bytes32[] memory schemaHashes = new bytes32[](seeds.length);
+        bytes32[] memory pvSchemas = new bytes32[](seeds.length);
+        bool[] memory actives = new bool[](seeds.length);
+
+        for (uint256 i = 0; i < seeds.length; i++) {
+            ids[i] = seeds[i].id;
+            adapters[i] = seeds[i].adapter;
+            vkeys[i] = seeds[i].vkey;
+            elfHashes[i] = seeds[i].elfHash;
+            programIds[i] = seeds[i].programId;
+            schemaHashes[i] = seeds[i].schemaHash;
+            pvSchemas[i] = seeds[i].pvSchema;
+            actives[i] = seeds[i].active;
+        }
+
+        root = registry.computeCanonicalRoot(
+            ids, adapters, vkeys, elfHashes, programIds, schemaHashes, pvSchemas, actives
+        );
+    }
+
+    function _commitRegistry(VerifierSeed[] memory seeds, bool seal)
+        internal returns (bytes32 root)
+    {
+        root = _computeRoot(seeds);
+        for (uint256 i = 0; i < seeds.length; i++) {
+            registry.registerVerifier(
+                root, seeds[i].id, seeds[i].adapter, seeds[i].vkey,
+                seeds[i].elfHash, seeds[i].programId, seeds[i].schemaHash, seeds[i].pvSchema
+            );
+        }
+        if (seal) {
+            registry.sealRegistry(root);
+        }
+    }
+
     function setUp() public {
         authority = new SewGovernanceAuthorityAdapter(
             PROTOCOL_ROOT,
@@ -110,47 +207,10 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     }
 
     function _seedR0Registry() internal returns (bytes32) {
-        bytes32[] memory ids = new bytes32[](2);
-        address[] memory adapters = new address[](2);
-        bytes32[] memory vkeys = new bytes32[](2);
-        bytes32[] memory elfHashes = new bytes32[](2);
-        string[] memory programIds = new string[](2);
-        bytes32[] memory schemaHashes = new bytes32[](2);
-        bytes32[] memory pvSchemas = new bytes32[](2);
-        bool[] memory actives = new bool[](2);
-
-        ids[0] = REALIZED_ALLOC_VERIFIER_ID;
-        adapters[0] = address(adapter);
-        vkeys[0] = FIXTURE_VKEY;
-        elfHashes[0] = FIXTURE_ELF_SHA256;
-        programIds[0] = "realized-allocation-proof.v1";
-        schemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        pvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        actives[0] = true;
-
-        ids[1] = LEGACY_R0_ONLY_VERIFIER_ID;
-        adapters[1] = address(adapter);
-        vkeys[1] = FIXTURE_VKEY;
-        elfHashes[1] = FIXTURE_ELF_SHA256;
-        programIds[1] = "legacy-r0-only-proof.v1";
-        schemaHashes[1] = keccak256("legacy-r0-only-statement.v1");
-        pvSchemas[1] = FIXTURE_PV_SCHEMA_HASH;
-        actives[1] = true;
-
-        bytes32 root = registry.computeCanonicalRoot(
-            ids, adapters, vkeys, elfHashes, programIds,
-            schemaHashes, pvSchemas, actives
-        );
-
-        for (uint256 i = 0; i < 2; i++) {
-            registry.registerVerifier(
-                root, ids[i], adapters[i], vkeys[i], elfHashes[i],
-                programIds[i], schemaHashes[i], pvSchemas[i]
-            );
-        }
-        registry.sealRegistry(root);
-
-        return root;
+        VerifierSeed[] memory seeds = new VerifierSeed[](2);
+        seeds[0] = _allocSeed(address(adapter));
+        seeds[1] = _legacySeed(address(adapter));
+        return _commitRegistry(seeds, true);
     }
 
     function _seedR1Registry(bytes32 commitment) internal returns (bytes32) {
@@ -164,47 +224,10 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
                 "evm-bytes32-v1"
             );
 
-        bytes32[] memory ids = new bytes32[](2);
-        address[] memory adapters = new address[](2);
-        bytes32[] memory vkeys = new bytes32[](2);
-        bytes32[] memory elfHashes = new bytes32[](2);
-        string[] memory programIds = new string[](2);
-        bytes32[] memory schemaHashes = new bytes32[](2);
-        bytes32[] memory pvSchemas = new bytes32[](2);
-        bool[] memory actives = new bool[](2);
-
-        ids[0] = REALIZED_ALLOC_VERIFIER_ID;
-        adapters[0] = address(adapter);
-        vkeys[0] = FIXTURE_VKEY;
-        elfHashes[0] = FIXTURE_ELF_SHA256;
-        programIds[0] = "realized-allocation-proof.v1";
-        schemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        pvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        actives[0] = true;
-
-        ids[1] = SYNTHETIC_TEST_VERIFIER_ID;
-        adapters[1] = address(syntheticAdapter);
-        vkeys[1] = FIXTURE_VKEY;
-        elfHashes[1] = FIXTURE_ELF_SHA256;
-        programIds[1] = "synthetic-test-verifier.v1";
-        schemaHashes[1] = keccak256("synthetic-test-statement.v1");
-        pvSchemas[1] = FIXTURE_PV_SCHEMA_HASH;
-        actives[1] = true;
-
-        bytes32 root = registry.computeCanonicalRoot(
-            ids, adapters, vkeys, elfHashes, programIds,
-            schemaHashes, pvSchemas, actives
-        );
-
-        for (uint256 i = 0; i < 2; i++) {
-            registry.registerVerifier(
-                root, ids[i], adapters[i], vkeys[i], elfHashes[i],
-                programIds[i], schemaHashes[i], pvSchemas[i]
-            );
-        }
-        registry.sealRegistry(root);
-
-        return root;
+        VerifierSeed[] memory seeds = new VerifierSeed[](2);
+        seeds[0] = _allocSeed(address(adapter));
+        seeds[1] = _syntheticSeed(address(syntheticAdapter));
+        return _commitRegistry(seeds, true);
     }
 
     function test_P1_InitialExecutorState_ExposesExactC0R0() public {
@@ -449,35 +472,9 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 firstDecision = sha256(bytes("first-decision"));
         bytes32 configRoot1 = sha256(bytes("config-1"));
 
-        bytes32[] memory r1Ids = new bytes32[](1);
-        address[] memory r1Adapters = new address[](1);
-        bytes32[] memory r1Vkeys = new bytes32[](1);
-        bytes32[] memory r1ElfHashes = new bytes32[](1);
-        string[] memory r1ProgramIds = new string[](1);
-        bytes32[] memory r1SchemaHashes = new bytes32[](1);
-        bytes32[] memory r1PvSchemas = new bytes32[](1);
-        bool[] memory r1Actives = new bool[](1);
-
-        r1Ids[0] = keccak256("verifier-r1-1");
-        r1Adapters[0] = address(adapter);
-        r1Vkeys[0] = FIXTURE_VKEY;
-        r1ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r1ProgramIds[0] = "realized-allocation-proof.v1";
-        r1SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r1PvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        r1Actives[0] = true;
-
-        bytes32 registryRoot1 = registry.computeCanonicalRoot(
-            r1Ids, r1Adapters, r1Vkeys, r1ElfHashes, r1ProgramIds, r1SchemaHashes, r1PvSchemas, r1Actives
-        );
-
-        for (uint256 i = 0; i < r1Ids.length; i++) {
-            registry.registerVerifier(
-                registryRoot1, r1Ids[i], r1Adapters[i], r1Vkeys[i],
-                r1ElfHashes[i], r1ProgramIds[i], r1SchemaHashes[i], r1PvSchemas[i]
-            );
-        }
-        registry.sealRegistry(registryRoot1);
+        VerifierSeed[] memory r1Seeds = new VerifierSeed[](1);
+        r1Seeds[0] = _customSeed(keccak256("verifier-r1-1"), address(adapter));
+        bytes32 registryRoot1 = _commitRegistry(r1Seeds, true);
 
         authority.authoriseDecision(
             firstDecision,
@@ -502,35 +499,9 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
         bytes32 staleDecision = sha256(bytes("stale-decision"));
         bytes32 configRoot2 = sha256(bytes("config-2"));
 
-        bytes32[] memory r2Ids = new bytes32[](1);
-        address[] memory r2Adapters = new address[](1);
-        bytes32[] memory r2Vkeys = new bytes32[](1);
-        bytes32[] memory r2ElfHashes = new bytes32[](1);
-        string[] memory r2ProgramIds = new string[](1);
-        bytes32[] memory r2SchemaHashes = new bytes32[](1);
-        bytes32[] memory r2PvSchemas = new bytes32[](1);
-        bool[] memory r2Actives = new bool[](1);
-
-        r2Ids[0] = keccak256("verifier-r2-1");
-        r2Adapters[0] = address(adapter);
-        r2Vkeys[0] = FIXTURE_VKEY;
-        r2ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r2ProgramIds[0] = "realized-allocation-proof.v1";
-        r2SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r2PvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        r2Actives[0] = true;
-
-        bytes32 registryRoot2 = registry.computeCanonicalRoot(
-            r2Ids, r2Adapters, r2Vkeys, r2ElfHashes, r2ProgramIds, r2SchemaHashes, r2PvSchemas, r2Actives
-        );
-
-        for (uint256 i = 0; i < r2Ids.length; i++) {
-            registry.registerVerifier(
-                registryRoot2, r2Ids[i], r2Adapters[i], r2Vkeys[i],
-                r2ElfHashes[i], r2ProgramIds[i], r2SchemaHashes[i], r2PvSchemas[i]
-            );
-        }
-        registry.sealRegistry(registryRoot2);
+        VerifierSeed[] memory r2Seeds = new VerifierSeed[](1);
+        r2Seeds[0] = _customSeed(keccak256("verifier-r2-1"), address(adapter));
+        bytes32 registryRoot2 = _commitRegistry(r2Seeds, true);
 
         authority.authoriseDecision(
             staleDecision,
@@ -559,38 +530,9 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     }
 
     function test_N12_UnsealedNewRegistryRootRejects() public {
-        bytes32[] memory r1Ids = new bytes32[](1);
-        address[] memory r1Adapters = new address[](1);
-        bytes32[] memory r1Vkeys = new bytes32[](1);
-        bytes32[] memory r1ElfHashes = new bytes32[](1);
-        string[] memory r1ProgramIds = new string[](1);
-        bytes32[] memory r1SchemaHashes = new bytes32[](1);
-        bytes32[] memory r1PvSchemas = new bytes32[](1);
-        bool[] memory r1Actives = new bool[](1);
-
-        r1Ids[0] = keccak256("verifier-unsealed-1");
-        r1Adapters[0] = address(adapter);
-        r1Vkeys[0] = FIXTURE_VKEY;
-        r1ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r1ProgramIds[0] = "realized-allocation-proof.v1";
-        r1SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r1PvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        r1Actives[0] = true;
-
-        bytes32 unsealedRegistry = registry.computeCanonicalRoot(
-            r1Ids, r1Adapters, r1Vkeys, r1ElfHashes, r1ProgramIds, r1SchemaHashes, r1PvSchemas, r1Actives
-        );
-
-        registry.registerVerifier(
-            unsealedRegistry,
-            r1Ids[0],
-            r1Adapters[0],
-            r1Vkeys[0],
-            r1ElfHashes[0],
-            r1ProgramIds[0],
-            r1SchemaHashes[0],
-            FIXTURE_PV_SCHEMA_HASH
-        );
+        VerifierSeed[] memory r1Seeds = new VerifierSeed[](1);
+        r1Seeds[0] = _customSeed(keccak256("verifier-unsealed-1"), address(adapter));
+        bytes32 unsealedRegistry = _commitRegistry(r1Seeds, false);
 
         authority.authoriseDecision(
             DECISION_ROOT,
@@ -859,40 +801,9 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     function test_C1_ConfigRootMismatchRejectsAdmission() public {
         address eoa = makeAddr("attacker");
 
-        bytes32[] memory forgedIds = new bytes32[](1);
-        address[] memory forgedAdapters = new address[](1);
-        bytes32[] memory forgedVkeys = new bytes32[](1);
-        bytes32[] memory forgedElfHashes = new bytes32[](1);
-        string[] memory forgedProgramIds = new string[](1);
-        bytes32[] memory forgedSchemaHashes = new bytes32[](1);
-        bytes32[] memory forgedPvSchemas = new bytes32[](1);
-        bool[] memory forgedActives = new bool[](1);
-
-        forgedIds[0] = keccak256("attacker-verifier");
-        forgedAdapters[0] = eoa;
-        forgedVkeys[0] = FIXTURE_VKEY;
-        forgedElfHashes[0] = FIXTURE_ELF_SHA256;
-        forgedProgramIds[0] = "realized-allocation-proof.v1";
-        forgedSchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        forgedPvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        forgedActives[0] = true;
-
-        bytes32 attackerRoot = registry.computeCanonicalRoot(
-            forgedIds, forgedAdapters, forgedVkeys, forgedElfHashes,
-            forgedProgramIds, forgedSchemaHashes, forgedPvSchemas, forgedActives
-        );
-
-        registry.registerVerifier(
-            attackerRoot,
-            forgedIds[0],
-            forgedAdapters[0],
-            forgedVkeys[0],
-            forgedElfHashes[0],
-            forgedProgramIds[0],
-            forgedSchemaHashes[0],
-            FIXTURE_PV_SCHEMA_HASH
-        );
-        registry.sealRegistry(attackerRoot);
+        VerifierSeed[] memory forged = new VerifierSeed[](1);
+        forged[0] = _customSeed(keccak256("attacker-verifier"), eoa);
+        bytes32 attackerRoot = _commitRegistry(forged, true);
 
         PrfStatementAdmission attackerAdmission = new PrfStatementAdmission(
             genesis,
@@ -913,7 +824,7 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
             CONFIG_ROOT_0
         ));
         attackerAdmission.admitStatement(
-            forgedIds[0],
+            forged[0].id,
             statementRoot,
             "",
             publicValues
@@ -921,38 +832,20 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     }
 
     function test_D1_FakeStoredRegistryRootWithRealEntriesRejects() public {
-        bytes32[] memory r0Ids = new bytes32[](1);
-        address[] memory r0Adapters = new address[](1);
-        bytes32[] memory r0Vkeys = new bytes32[](1);
-        bytes32[] memory r0ElfHashes = new bytes32[](1);
-        string[] memory r0ProgramIds = new string[](1);
-        bytes32[] memory r0SchemaHashes = new bytes32[](1);
-        bytes32[] memory r0PvSchemas = new bytes32[](1);
-        bool[] memory r0Actives = new bool[](1);
+        VerifierSeed[] memory r0 = new VerifierSeed[](1);
+        r0[0] = _customSeed(keccak256("fake-root-verifier"), address(adapter));
 
-        r0Ids[0] = keccak256("fake-root-verifier");
-        r0Adapters[0] = address(adapter);
-        r0Vkeys[0] = FIXTURE_VKEY;
-        r0ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r0ProgramIds[0] = "realized-allocation-proof.v1";
-        r0SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r0PvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        r0Actives[0] = true;
-
-        bytes32 realRoot = registry.computeCanonicalRoot(
-            r0Ids, r0Adapters, r0Vkeys, r0ElfHashes, r0ProgramIds, r0SchemaHashes, r0PvSchemas, r0Actives
-        );
-
+        bytes32 realRoot = _computeRoot(r0);
         bytes32 fakeRoot = keccak256("fake-registry-root-not-canonical");
 
         registry.registerVerifier(
             fakeRoot,
-            r0Ids[0],
-            r0Adapters[0],
-            r0Vkeys[0],
-            r0ElfHashes[0],
-            r0ProgramIds[0],
-            r0SchemaHashes[0],
+            r0[0].id,
+            r0[0].adapter,
+            r0[0].vkey,
+            r0[0].elfHash,
+            r0[0].programId,
+            r0[0].schemaHash,
             FIXTURE_PV_SCHEMA_HASH
         );
 
@@ -966,52 +859,23 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     }
 
     function test_D2_ReplaceVerifierUnderExistingIdRequiresNewRoot() public {
-        bytes32[] memory modifiedIds = new bytes32[](1);
-        address[] memory modifiedAdapters = new address[](1);
-        bytes32[] memory modifiedVkeys = new bytes32[](1);
-        bytes32[] memory modifiedElfHashes = new bytes32[](1);
-        string[] memory modifiedProgramIds = new string[](1);
-        bytes32[] memory modifiedSchemaHashes = new bytes32[](1);
-        bytes32[] memory modifiedPvSchemas = new bytes32[](1);
-        bool[] memory modifiedActives = new bool[](1);
-
-        modifiedIds[0] = REALIZED_ALLOC_VERIFIER_ID;
-        modifiedAdapters[0] = address(0xDEAD);
-        modifiedVkeys[0] = FIXTURE_VKEY;
-        modifiedElfHashes[0] = FIXTURE_ELF_SHA256;
-        modifiedProgramIds[0] = "realized-allocation-proof.v1";
-        modifiedSchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        modifiedPvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        modifiedActives[0] = true;
-
-        bytes32 modifiedRoot = registry.computeCanonicalRoot(
-            modifiedIds, modifiedAdapters, modifiedVkeys, modifiedElfHashes,
-            modifiedProgramIds, modifiedSchemaHashes, modifiedPvSchemas, modifiedActives
-        );
+        VerifierSeed[] memory modified = new VerifierSeed[](1);
+        modified[0] = VerifierSeed({
+            id: REALIZED_ALLOC_VERIFIER_ID,
+            adapter: address(0xDEAD),
+            vkey: FIXTURE_VKEY,
+            elfHash: FIXTURE_ELF_SHA256,
+            programId: "realized-allocation-proof.v1",
+            schemaHash: keccak256("realized-allocation-statement.v1"),
+            pvSchema: FIXTURE_PV_SCHEMA_HASH,
+            active: true
+        });
+        bytes32 modifiedRoot = _computeRoot(modified);
 
         assertGt(uint256(uint160(address(0xDEAD))), 0);
         assertEq(modifiedRoot != VERIFIER_REGISTRY_ROOT_0, true);
         assertEq(registry.canonicalRootMatches(VERIFIER_REGISTRY_ROOT_0), true);
 
-        bytes32[] memory r0Ids = new bytes32[](2);
-        address[] memory r0Adapters = new address[](2);
-        bytes32[] memory r0Vkeys = new bytes32[](2);
-        bytes32[] memory r0ElfHashes = new bytes32[](2);
-        string[] memory r0ProgramIds = new string[](2);
-        bytes32[] memory r0SchemaHashes = new bytes32[](2);
-        bytes32[] memory r0PvSchemas = new bytes32[](2);
-        bool[] memory r0Actives = new bool[](2);
-
-        r0Ids[0] = REALIZED_ALLOC_VERIFIER_ID;
-        r0Adapters[0] = address(adapter);
-        r0Vkeys[0] = FIXTURE_VKEY;
-        r0ElfHashes[0] = FIXTURE_ELF_SHA256;
-        r0ProgramIds[0] = "realized-allocation-proof.v1";
-        r0SchemaHashes[0] = keccak256("realized-allocation-statement.v1");
-        r0PvSchemas[0] = FIXTURE_PV_SCHEMA_HASH;
-        r0Actives[0] = true;
-
-        r0Ids[1] = LEGACY_R0_ONLY_VERIFIER_ID;
         MockSP1Verifier legacyMock = new MockSP1Verifier(
             keccak256(abi.encodePacked(FIXTURE_VKEY, FIXTURE_PUBLIC_VALUES)),
             VERIFIER_HASH
@@ -1024,17 +888,11 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
                 "realized-allocation-statement.v1",
                 "evm-bytes32-v1"
             );
-        r0Adapters[1] = address(legacyAdapter);
-        r0Vkeys[1] = FIXTURE_VKEY;
-        r0ElfHashes[1] = FIXTURE_ELF_SHA256;
-        r0ProgramIds[1] = "legacy-r0-only-proof.v1";
-        r0SchemaHashes[1] = keccak256("legacy-r0-only-statement.v1");
-        r0PvSchemas[1] = FIXTURE_PV_SCHEMA_HASH;
-        r0Actives[1] = true;
 
-        bytes32 realR0Root = registry.computeCanonicalRoot(
-            r0Ids, r0Adapters, r0Vkeys, r0ElfHashes, r0ProgramIds, r0SchemaHashes, r0PvSchemas, r0Actives
-        );
+        VerifierSeed[] memory r0 = new VerifierSeed[](2);
+        r0[0] = _allocSeed(address(adapter));
+        r0[1] = _legacySeed(address(legacyAdapter));
+        bytes32 realR0Root = _computeRoot(r0);
 
         vm.prank(address(this));
         vm.expectRevert(abi.encodeWithSelector(
@@ -1068,17 +926,7 @@ contract PrfConfigurationAuthorizationConformanceTest is Test {
     }
 
     function test_F1_FakeStoredRootRejectsAtSeal() public {
-        bytes32[] memory emptyIds = new bytes32[](0);
-        address[] memory emptyAddrs = new address[](0);
-        bytes32[] memory emptyHashes = new bytes32[](0);
-        string[] memory emptyStrings = new string[](0);
-        bool[] memory emptyBools = new bool[](0);
-
-        bytes32 emptyRoot = registry.computeCanonicalRoot(
-            emptyIds, emptyAddrs, emptyHashes, emptyHashes, emptyStrings, emptyHashes, emptyHashes, emptyBools
-        );
-
-        registry.sealRegistry(emptyRoot);
+        bytes32 emptyRoot = _commitRegistry(new VerifierSeed[](0), true);
 
         assertTrue(registry.isSealed(emptyRoot));
         assertTrue(registry.canonicalRootMatches(emptyRoot));

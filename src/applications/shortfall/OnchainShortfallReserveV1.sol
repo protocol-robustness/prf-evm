@@ -2,7 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ProductionProRataAllocatorV1} from "./ProductionProRataAllocatorV1.sol";
+import {ProductionProRataAllocatorV1} from "../pro-rata/ProductionProRataAllocatorV1.sol";
 
 /// @notice A non-upgradeable, single-token source of authoritative Shortfall
 ///         availability. It records actual custody and explicit reservations;

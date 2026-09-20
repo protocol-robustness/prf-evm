@@ -3,7 +3,7 @@ pragma solidity ^0.8.33;
 
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {IPrfVerifierRegistry} from "./interfaces/IPrfVerifierRegistry.sol";
+import {IPrfVerifierRegistry} from "../interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfVerifierRegistry
 /// @notice Versioned, immutable verifier-registry snapshots keyed by registry root.

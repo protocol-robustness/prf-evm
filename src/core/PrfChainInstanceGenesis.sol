@@ -3,8 +3,8 @@ pragma solidity ^0.8.33;
 
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
-import {ISewGovernanceAuthority} from "./interfaces/ISewGovernanceAuthority.sol";
+import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
+import {ISewGovernanceAuthority} from "../interfaces/ISewGovernanceAuthority.sol";
 
 /// @title PrfChainInstanceGenesis
 /// @notice Sealed anchor for a concrete EVM execution instance of one PRF/SEW protocol genesis.

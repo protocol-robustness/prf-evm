@@ -5,10 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
-import {ISP1Verifier} from "../src/ISP1Verifier.sol";
-import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
-import {PrfRealizedExecutionVerifierAdapter} from "../src/PrfRealizedExecutionVerifierAdapter.sol";
-import {ProductionProRataAllocatorV1} from "../src/ProductionProRataAllocatorV1.sol";
+import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
+import {MockSP1Verifier} from "./mocks/MockSP1Verifier.sol";
+import {PrfRealizedExecutionVerifierAdapter} from "../src/verification/adapters/PrfRealizedExecutionVerifierAdapter.sol";
+import {ProductionProRataAllocatorV1} from "../src/applications/pro-rata/ProductionProRataAllocatorV1.sol";
 
 contract ReceiptStore {
     mapping(bytes32 => IPrfStatementAdmission.AdmissionReceipt) internal receipts;

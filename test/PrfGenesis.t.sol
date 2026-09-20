@@ -3,11 +3,11 @@ pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
 
-import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
-import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {PrfEvidenceAnchor} from "../src/PrfEvidenceAnchor.sol";
+import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
+import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {PrfEvidenceAnchor} from "../src/core/PrfEvidenceAnchor.sol";
 import {IPrfEvidenceAnchor} from "../src/interfaces/IPrfEvidenceAnchor.sol";
 
 contract PrfGenesisTest is Test {

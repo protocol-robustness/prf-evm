@@ -6,15 +6,15 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SP1Verifier} from "@sp1-contracts/v6.1.0/SP1VerifierGroth16.sol";
 
-import {ISP1Verifier} from "../src/ISP1Verifier.sol";
+import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
-import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
-import {PrfRealizedExecutionVerifierAdapter} from "../src/PrfRealizedExecutionVerifierAdapter.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {ProductionProRataAllocatorV1} from "../src/ProductionProRataAllocatorV1.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
+import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
+import {PrfRealizedExecutionVerifierAdapter} from "../src/verification/adapters/PrfRealizedExecutionVerifierAdapter.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {ProductionProRataAllocatorV1} from "../src/applications/pro-rata/ProductionProRataAllocatorV1.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
 
 contract EtchedFixtureERC20 is ERC20 {
     constructor() ERC20("Etched fixture token", "EFT") {}
@@ -218,7 +218,7 @@ contract RealizedExecutionProofEtchedIntegrationTest is Test {
         private
         returns (bytes32 vkey, bytes32 elfSha256, bytes memory publicValues, bytes memory proof, string memory programId)
     {
-        string memory json = vm.readFile("src/fixtures/realized-execution-proof-fixture.json");
+        string memory json = vm.readFile("fixtures/realized-execution-proof-fixture.json");
         vkey = abi.decode(vm.parseJson(json, ".vkey"), (bytes32));
         elfSha256 = abi.decode(vm.parseJson(json, ".elfSha256"), (bytes32));
         publicValues = abi.decode(vm.parseJson(json, ".publicValues"), (bytes));

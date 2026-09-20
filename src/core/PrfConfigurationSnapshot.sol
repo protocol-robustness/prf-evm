@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.33;
 
-import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
-import {IPrfConfigurationExecutor} from "./interfaces/IPrfConfigurationExecutor.sol";
+import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
+import {IPrfConfigurationExecutor} from "../interfaces/IPrfConfigurationExecutor.sol";
 
 /// @title PrfConfigurationSnapshot
 /// @notice Minimal example of the SEW prospective-governance pattern.

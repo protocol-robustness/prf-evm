@@ -5,10 +5,10 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
-import {IPrfConfigurationExecutor} from "./interfaces/IPrfConfigurationExecutor.sol";
-import {ISewGovernanceAuthority} from "./interfaces/ISewGovernanceAuthority.sol";
-import {IPrfVerifierRegistry} from "./interfaces/IPrfVerifierRegistry.sol";
+import {IPrfChainInstanceGenesis} from "../../interfaces/IPrfChainInstanceGenesis.sol";
+import {IPrfConfigurationExecutor} from "../../interfaces/IPrfConfigurationExecutor.sol";
+import {ISewGovernanceAuthority} from "../../interfaces/ISewGovernanceAuthority.sol";
+import {IPrfVerifierRegistry} from "../../interfaces/IPrfVerifierRegistry.sol";
 
 /// @title SewConfigurationExecutor
 /// @notice Applies expected-parent PRF configuration-root transitions authorised

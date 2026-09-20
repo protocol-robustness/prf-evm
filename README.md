@@ -31,7 +31,7 @@ Versions are pinned via `foundry.lock` and `foundry.toml`:
 
 `GovGovernor.sol` is derived from the SEW project's supplied `SewGovernor` base, itself built on OpenZeppelin Contracts v5.7.0 (`Governor`, `GovernorSettings`, `GovernorCountingSimple`, `GovernorVotes`, `GovernorTimelockControl`, `TimelockController`). The delta from the supplied SEW base is documented in `MIGRATION_NOTES.md`. Treat any Governor-derived contract as security-sensitive.
 
-The `PrfStatementAdmissionRealProof` conformance tests exercise the real SP1 Groth16 Solidity verifier from `sp1-contracts` with a real (non-mock) SP1 CPU-prover proof (see `src/fixtures/realized-statement-proof-fixture.json`).
+The `PrfStatementAdmissionRealProof` conformance tests exercise the real SP1 Groth16 Solidity verifier from `sp1-contracts` with a real (non-mock) SP1 CPU-prover proof (see `fixtures/realized-statement-proof-fixture.json`).
 
 ## Architecture
 
@@ -282,7 +282,7 @@ FOUNDRY_PROFILE=test forge test --match-contract PrfStatementAdmissionRealProofT
 FOUNDRY_PROFILE=test forge test --match-contract PrfAssuredOperationConsumerTest
 ```
 
-The 64-test suite (all passing) covers genesis sealing, configuration-authorisation, verifier-registry canonical-root sealing and immutability, and the statement-admission rejection matrix. Verified rejection categories include: wrong configuration root, wrong epoch, stale parent, consumed decision, unsealed/forged registry root, wrong verifier identity, correct-proof-with-wrong-schema identity, tampered/malformed public values, statement-root mismatch, tampered proof bytes, inactive verifier, and mock-vs-real proof incompatibility. See `src/fixtures/realized-statement-proof-fixture.json` for the real-prover proof fixture.
+The 64-test suite (all passing) covers genesis sealing, configuration-authorisation, verifier-registry canonical-root sealing and immutability, and the statement-admission rejection matrix. Verified rejection categories include: wrong configuration root, wrong epoch, stale parent, consumed decision, unsealed/forged registry root, wrong verifier identity, correct-proof-with-wrong-schema identity, tampered/malformed public values, statement-root mismatch, tampered proof bytes, inactive verifier, and mock-vs-real proof incompatibility. See `fixtures/realized-statement-proof-fixture.json` for the real-prover proof fixture.
 
 ## What this package does not provide
 

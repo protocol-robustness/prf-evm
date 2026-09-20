@@ -13,7 +13,7 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {
     ISewGovernanceAuthority,
     ISewGovernanceAuthorityAdmin
-} from "./interfaces/ISewGovernanceAuthority.sol";
+} from "../interfaces/ISewGovernanceAuthority.sol";
 
 /// @title GovGovernor
 /// @notice OpenZeppelin Governor + TimelockControl for SEW Protocol DAO, with a thin PRF authority bridge.

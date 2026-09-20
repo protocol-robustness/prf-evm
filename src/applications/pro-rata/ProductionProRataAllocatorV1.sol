@@ -2,8 +2,8 @@
 pragma solidity ^0.8.33;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IPrfStatementAdmission} from "./interfaces/IPrfStatementAdmission.sol";
-import {PrfRealizedExecutionVerifierAdapter} from "./PrfRealizedExecutionVerifierAdapter.sol";
+import {IPrfStatementAdmission} from "../../interfaces/IPrfStatementAdmission.sol";
+import {PrfRealizedExecutionVerifierAdapter} from "../../verification/adapters/PrfRealizedExecutionVerifierAdapter.sol";
 
 /// @notice Minimal custody application for the frozen realized-allocation execution V1 projection.
 contract ProductionProRataAllocatorV1 {

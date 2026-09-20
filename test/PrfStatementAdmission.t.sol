@@ -3,13 +3,13 @@ pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
 
-import {PrfChainInstanceGenesis} from "../src/PrfChainInstanceGenesis.sol";
-import {SewGovernanceAuthorityAdapter} from "../src/SewGovernanceAuthorityAdapter.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {PrfRealizedAllocationVerifierAdapter} from "../src/PrfRealizedAllocationVerifierAdapter.sol";
-import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
+import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
+import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {PrfRealizedAllocationVerifierAdapter} from "../src/verification/adapters/PrfRealizedAllocationVerifierAdapter.sol";
+import {MockSP1Verifier} from "./mocks/MockSP1Verifier.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
 import {IPrfVerifierRegistry} from "../src/interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfStatementAdmissionTest

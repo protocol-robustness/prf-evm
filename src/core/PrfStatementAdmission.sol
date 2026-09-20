@@ -4,12 +4,12 @@ pragma solidity ^0.8.33;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import {IPrfStatementVerifierAdapter} from "./interfaces/IPrfStatementVerifierAdapter.sol";
+import {IPrfStatementVerifierAdapter} from "../interfaces/IPrfStatementVerifierAdapter.sol";
 import {PrfVerifierRegistry} from "./PrfVerifierRegistry.sol";
-import {SewConfigurationExecutor} from "./SewConfigurationExecutor.sol";
-import {IPrfChainInstanceGenesis} from "./interfaces/IPrfChainInstanceGenesis.sol";
-import {IPrfStatementAdmission} from "./interfaces/IPrfStatementAdmission.sol";
-import {IPrfVerifierRegistry} from "./interfaces/IPrfVerifierRegistry.sol";
+import {SewConfigurationExecutor} from "../integrations/sew/SewConfigurationExecutor.sol";
+import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
+import {IPrfStatementAdmission} from "../interfaces/IPrfStatementAdmission.sol";
+import {IPrfVerifierRegistry} from "../interfaces/IPrfVerifierRegistry.sol";
 
 /// @title PrfStatementAdmission
 /// @notice Generic admission gateway for registered PRF statement proofs.

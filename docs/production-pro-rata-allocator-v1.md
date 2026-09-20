@@ -20,6 +20,6 @@
 
 The Foundry suite decodes the exact pinned Rust-generated 384-byte public-value vector and separately derives adversarial local vectors. It covers projection digest and binding checks, configuration-snapshot mismatch, Merkle identity/proof rejection, duplicate claims, lifecycle/cancellation, fee-token rejection, and generic-admission integration.
 
-The test suite includes the generated `src/fixtures/realized-execution-proof-fixture.json` real Groth16 fixture. `RealizedExecutionProofEtchedIntegration` reads that fixture, deploys the SP1 v6.1 Groth16 verifier, registers `PrfRealizedExecutionVerifierAdapter` through the generic registry/admission machinery, admits the proof, rejects altered public values, activates the allocator at the proof-committed address, and completes an authenticated ERC-20 claim.
+The test suite includes the generated `fixtures/realized-execution-proof-fixture.json` real Groth16 fixture. `RealizedExecutionProofEtchedIntegration` reads that fixture, deploys the SP1 v6.1 Groth16 verifier, registers `PrfRealizedExecutionVerifierAdapter` through the generic registry/admission machinery, admits the proof, rejects altered public values, activates the allocator at the proof-committed address, and completes an authenticated ERC-20 claim.
 
 The allocator remains experimental: this conformance path is not a deployment, external security audit, operational procedure, or generic-token compatibility guarantee.

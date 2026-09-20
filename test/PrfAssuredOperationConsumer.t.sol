@@ -2,8 +2,8 @@
 pragma solidity ^0.8.33;
 
 import {PrfStatementAdmissionTest} from "./PrfStatementAdmission.t.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
-import {PrfAssuredOperationConsumer} from "../src/PrfAssuredOperationConsumer.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
+import {PrfAssuredOperationConsumer} from "../src/consumers/PrfAssuredOperationConsumer.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
 
 /// @notice End-to-end enforcement tests: proof admission is necessary but not

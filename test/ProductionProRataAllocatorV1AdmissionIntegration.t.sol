@@ -4,13 +4,13 @@ pragma solidity ^0.8.33;
 import {PrfStatementAdmissionTest} from "./PrfStatementAdmission.t.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
-import {ISP1Verifier} from "../src/ISP1Verifier.sol";
-import {MockSP1Verifier} from "../src/MockSP1Verifier.sol";
-import {PrfRealizedExecutionVerifierAdapter} from "../src/PrfRealizedExecutionVerifierAdapter.sol";
-import {PrfVerifierRegistry} from "../src/PrfVerifierRegistry.sol";
-import {SewConfigurationExecutor} from "../src/SewConfigurationExecutor.sol";
-import {PrfStatementAdmission} from "../src/PrfStatementAdmission.sol";
-import {ProductionProRataAllocatorV1} from "../src/ProductionProRataAllocatorV1.sol";
+import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
+import {MockSP1Verifier} from "./mocks/MockSP1Verifier.sol";
+import {PrfRealizedExecutionVerifierAdapter} from "../src/verification/adapters/PrfRealizedExecutionVerifierAdapter.sol";
+import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
+import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
+import {ProductionProRataAllocatorV1} from "../src/applications/pro-rata/ProductionProRataAllocatorV1.sol";
 
 contract IntegrationToken is ERC20 {
     constructor() ERC20("Integration", "INT") {}

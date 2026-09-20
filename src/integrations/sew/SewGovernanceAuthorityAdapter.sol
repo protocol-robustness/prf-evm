@@ -7,7 +7,7 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {
     ISewGovernanceAuthority,
     ISewGovernanceAuthorityAdmin
-} from "./interfaces/ISewGovernanceAuthority.sol";
+} from "../../interfaces/ISewGovernanceAuthority.sol";
 
 /// @title SewGovernanceAuthorityAdapter
 /// @notice Thin PRF compatibility layer controlled by the SEW Governor contract.

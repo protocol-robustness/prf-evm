@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import {ISP1Verifier} from "./ISP1Verifier.sol";
+import {ISP1Verifier} from "../../src/verification/interfaces/ISP1Verifier.sol";
 
 /// @title MockSP1Verifier
 /// @notice Deterministic mock SP1 verifier for tests and development only.
