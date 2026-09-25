@@ -6,6 +6,30 @@ This document defines the canonical separation between the completed V1
 production allocator path and the separate V2 optimistic Shortfall reserve
 ratification path. V2 does not replace, upgrade, or wrap V1.
 
+## Normative assurance layers
+
+The following boundaries are independently testable and must not be collapsed
+into an undifferentiated "pro-rata Shortfall" mechanism:
+
+```text
+pro-rata allocation
+  = determines who gets what
+
+Shortfall V2
+  = establishes authoritative available capacity and moves that exact capacity
+
+proof/admission
+  = binds allocation and source-state statements to their configured program
+
+allocator/claims
+  = makes the resulting allocation executable
+```
+
+The canonical pro-rata primitive is independent of Shortfall. A Shortfall
+application consumes an allocation binding; it does not define the allocation
+algorithm. Likewise, a funded V2 allocator is an allocation-bound custody
+endpoint, not an implementation of pro-rata arithmetic or claims.
+
 ## Executive distinction
 
 ### V1: production allocation custody and claims
@@ -54,6 +78,61 @@ A V2 operation being `Funded` does not mean that a V1 allocation is activated or
 that claims are available. Any future V2 claims/activation layer must be an
 explicit later contract and identity, not an implicit reuse of V1 semantics.
 
+## Pro-rata primitive versus Shortfall demonstration
+
+The canonical `pro-rata-allocation` primitive is the domain-neutral allocation
+engine and its canonical request/result/evidence artifacts. In the framework,
+the liquidity-shortfall demonstration explicitly calls
+`resolver-sim.pro-rata.allocation/allocate` over a fixed request and tests the
+result (for example, available `70` against requests `50/30/20`, producing
+`35/21/14`). That demonstration is evidence that the primitive is used by a
+Shortfall scenario; it is not a new Shortfall-specific allocation algorithm.
+
+The EVM Shortfall contracts have a different responsibility. `OnchainShortfallReserveV2`,
+`SourceBoundProRataRatificationControllerV2`, and `ProductionProRataAllocatorV2`
+do not calculate proportional shares. They authenticate/bind allocation and
+realized-statement roots, compare the live reserve commitment, and move exact
+funded custody. The allocation result must already have been computed by the
+canonical allocation layer and represented by the proof-bound roots.
+
+Accordingly, the precise claim is:
+
+```text
+canonical pro-rata-allocation primitive
+  -> computes and commits the allocation result
+Shortfall V2 demonstration
+  -> authenticates that result's roots and funds its exact capacity
+```
+
+The Shortfall demo demonstrates **application of a canonical pro-rata
+allocation under liquidity shortfall**, not standalone proof that the EVM
+reserve or allocator implements the allocation arithmetic. A primitive-only
+conformance claim requires the framework allocation tests, canonical result and
+evidence artifacts, integer/conservation/cap/rounding checks, and deterministic
+replay. A Shortfall EVM conformance claim requires root binding, admission,
+reserve ratification, custody, and lifecycle checks.
+
+### Required join contract (not yet frozen)
+
+`allocationBindingRoot` must not remain opaque glue between repositories. The
+next primitive-level design artifact must define an `AllocationBindingV1`-style
+canonical object with, at minimum:
+
+```text
+mechanism ID and version
+request root
+policy root
+allocation-result root
+application-context root
+```
+
+The first four fields establish reusable primitive semantics. The
+`application-context root` is supplied by the consumer (for example, Shortfall,
+slashing, insurance, redemption, or withdrawal). A proof implementation then
+binds that allocation object to its realized statement and source-state
+assurance. This join contract is intentionally not defined by the V1 or V2
+reserve contracts in this repository.
+
 ## Relationship model
 
 The supported model is **parallel protocol/application families** with a
@@ -67,9 +146,10 @@ useful. They are not:
 - a generic allocator version hierarchy in which V2 inherits V1 lifecycle
   semantics.
 
-A deployment may contain V1, V2, or both. A combined deployment is composition
-of two separately identified candidates. It must not collapse their identities
-into one candidate or imply that activating V2 changes V1 behavior.
+A deployment may contain V1, V2, or both. Co-deployment alone is a bundle,
+not a new canonical protocol identity. A semantic composition must explicitly
+describe the primitive-to-proof-to-application join. Neither form may collapse
+the child identities or imply that activating V2 changes V1 behavior.
 
 ## Canonical identity boundaries
 
@@ -160,15 +240,22 @@ The following profiles are canonical:
    - V2 allocator;
    - no V1 activation/claim semantics implied.
 
-3. **Combined V1 + V2 profile**
-   - composition of one separately identified V1 candidate and one separately
-     identified V2 candidate;
-   - separate contract addresses, logical IDs, proof schemas, verifier bindings,
-     authorities, roots, and lifecycle state;
-   - no combined mutable lifecycle state and no `latest`/replacement meaning.
+3. **Explicit semantic composition**
+   - logical identity: `pro-rata-shortfall-composition.v1`;
+   - describes the exact join: canonical allocation result/binding -> proof and
+     admission -> named Shortfall application funding boundary;
+   - references separately identified primitive, proof implementation, and
+     application candidates;
+   - has no combined mutable lifecycle state and no `latest`/replacement meaning.
 
-A combined profile is a packaging convenience only. It does not create a new
-protocol family identity and must expose both child candidates independently.
+4. **Co-deployment bundle**
+   - logical identity: `pro-rata-shortfall-bundle.v1`;
+   - packages separately identified V1 and/or V2 candidates for operations;
+   - does not assert a semantic join beyond the bindings explicitly present in
+     the included child candidates.
+
+A bundle is a packaging convenience, while a composition is an auditable
+semantic claim. Both must expose all child candidates independently.
 
 ## Registry semantics
 
@@ -217,7 +304,8 @@ provenance for `P` and `C`; it does not alter the generic admission receipt.
 | --- | --- | --- | --- | --- | --- |
 | `pro-rata-v1` | `ProductionProRataAllocatorV1`, optional `OnchainShortfallReserveV1` | realized-execution V1 verifier/program/schema; V1 operation/configuration roots; claim/allocation roots | V1 production | V1 allocator custody/claims; optional V1 reserve | independent completed V1 family |
 | `shortfall-v2` | `SourceBoundProRataControllerV2`, `SourceBoundProRataAssuranceV2`, `SourceBoundProRataRatificationControllerV2`, `OnchainShortfallReserveV2`, `ProductionProRataAllocatorV2` | `preparedOperationRoot`; `reserveStateCommitment`; V2 source verifier/VKey/ELF/schema; configuration/epoch; observation root after ratification | V2 optimistic Shortfall | V2 source assurance; V2 ratification controller; V2 reserve; V2 allocator custody | independent parallel V2 family |
-| `combined-v1-v2` | one complete V1 candidate plus one complete V2 candidate | both complete child identity sets, represented separately; no single replacement root | composed profile only | union of separately named V1 and V2 roles | composition, not inheritance or supersession |
+| `pro-rata-shortfall-composition.v1` | named primitive descriptor, proof implementation descriptor, and one named Shortfall application candidate | explicit allocation binding/result root -> proof/admission identity -> application roots | semantic composition | explicit primitive/proof/application join roles | composition, not inheritance or supersession |
+| `pro-rata-shortfall-bundle.v1` | separately identified V1 and/or V2 candidates | child identity sets only; no synthetic replacement root | co-deployment bundle | union of separately named child roles | packaging only, not semantic composition |
 
 ## Non-supersession rule
 
@@ -225,7 +313,8 @@ V2 does not supersede V1. V1 remains a deployable fallback and an independent
 production path. V2 activation must not mutate V1 operation state, verifier
 identity, reserve snapshots, allocator claims, or configuration semantics.
 
-The Deployment Ledger should therefore expose V1 and V2 as separate candidates
-and, if needed, expose a combined profile as a composition whose child
-identities remain inspectable. No Deployment Ledger changes should be made from
-an assumption that one version replaces the other.
+The Deployment Ledger should therefore expose V1 and V2 as separate candidates.
+If it records a semantic composition, it must expose the exact
+primitive -> proof -> application join; if it records a bundle, it must say only
+that the child candidates are co-deployed. No Deployment Ledger changes should
+be made from an assumption that one version replaces the other.
