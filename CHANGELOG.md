@@ -4,6 +4,8 @@
 
 - Added a successor prepared-operation commitment and preparation entry point that bind the beneficiary profile while preserving the frozen V2 commitment. Ratification also checks configuration root/epoch and residual recipient against prepared context, and atomically marks operations Ratified before funding so abandon/fund ordering has one successful terminal outcome.
 
+- Added the additive `PrfSourceBoundEntitlementVerifierAdapterV1` profile for the fixed nine-word, 288-byte `prf/source-bound-entitlement-public-values.v1` projection. It enforces the frozen schema and representation descriptor roots while preserving the existing 192-byte source-bound V2 adapter. A focused Foundry test also verifies the actual B3 Groth16 proof fixture with the real SP1 verifier.
+
 - Added the neutral `IPrfAuthority` compatibility surface for PRF core contracts while preserving the existing SEW-compatible ABI.
 - Added the local-only `PrfLocalAuthorityAdapter` deployable for synthetic PRF deployments.
 - Regenerated the deployable artifact bundle with the local authority adapter and preserved immutable-reference metadata for runtime verification.
