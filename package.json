@@ -14,6 +14,8 @@
     "deployables:all": "pnpm deployables:export && pnpm deployables:validate && pnpm deployables:test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
         "gate-e": "bash scripts/gate-e-e2e.sh",
+            "source-bound-v2:validate": "ts-node scripts/validate-source-bound-v2-vectors.ts",
+                "source-bound-v2:generate": "ts-node scripts/generate-source-bound-v2-vectors.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

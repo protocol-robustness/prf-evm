@@ -14,6 +14,8 @@
 
 - Added the additive `PrfSourceBoundEntitlementVerifierAdapterV1` profile for the fixed nine-word, 288-byte `prf/source-bound-entitlement-public-values.v1` projection. It enforces the frozen schema and representation descriptor roots while preserving the existing 192-byte source-bound V2 adapter. A focused Foundry test also verifies the actual B3 Groth16 proof fixture with the real SP1 verifier.
 
+- Added the read-only minimal source-bound V2 vector layer: schemas and a deterministic preflight for semantic, deployment-state, and proof vectors. It cross-checks Gate E manifest/proof linkage, canonical VKey/ELF/schema identity, 192-byte public values and digests, proof digest, prepared/reserve roots, and manifest digest without changing contracts or proof semantics. See `docs/source-bound-v2-vectors.md`.
+
 - Added the neutral `IPrfAuthority` compatibility surface for PRF core contracts while preserving the existing SEW-compatible ABI.
 - Added the local-only `PrfLocalAuthorityAdapter` deployable for synthetic PRF deployments.
 - Regenerated the deployable artifact bundle with the local authority adapter and preserved immutable-reference metadata for runtime verification.

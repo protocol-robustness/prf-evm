@@ -1,0 +1,20 @@
+{
+  "status": "test-only-placeholder-not-admissible",
+  "program_id": "source-bound-sp1-program.v1",
+  "proof_system": "groth16",
+  "statement_schema": "prf/onchain-shortfall-allocation-binding.v1",
+  "public_values_schema": "prf/onchain-shortfall-allocation-binding-public-values.v1",
+  "public_values_length_bytes": 160,
+  "public_values_words": {
+    "schema": "0x<keccak256(public-values-schema-v1)>",
+    "allocationBindingRoot": "0x<bytes32-allocation-binding-root>",
+    "realizedStatementRoot": "0x<bytes32-realized-statement-root>",
+    "operationId": "0x<bytes32-operation-id>",
+    "reserveSnapshotHash": "0x<bytes32-authoritative-v1-reserve-snapshot>"
+  },
+  "proof": null,
+  "vkey": null,
+  "elf_sha256": null,
+  "admission_receipt": null,
+  "note": "This artifact defines the V1 proof-oriented shape only. It must never be submitted to PrfStatementAdmission or used as a verifier-registry entry. Use source-bound-proof-fixture.json for the existing real V1 fixture."
+}

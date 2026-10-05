@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"source-bound-v2-semantic-vector.v1","type":"object","additionalProperties":false,
+  "required":["schema","vector_id","deployment_vector_id","proof_vector_id","prepared_operation_root","reserve_state_root","allocation_binding_root","realized_statement_root","operation_id"],
+  "properties":{"schema":{"const":"source-bound-v2-semantic-vector.v1"},"vector_id":{"type":"string"},"deployment_vector_id":{"type":"string"},"proof_vector_id":{"type":"string"},"prepared_operation_root":{"type":"string","pattern":"^0x[0-9a-fA-F]{64}$"},"reserve_state_root":{"type":"string","pattern":"^0x[0-9a-fA-F]{64}$"},"allocation_binding_root":{"type":"string","pattern":"^0x[0-9a-fA-F]{64}$"},"realized_statement_root":{"type":"string","pattern":"^0x[0-9a-fA-F]{64}$"},"operation_id":{"type":"string","pattern":"^0x[0-9a-fA-F]{64}$"}}
+}
