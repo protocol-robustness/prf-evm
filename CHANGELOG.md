@@ -10,3 +10,5 @@
 - Added the native `ProductionProRataAllocatorV2` custody successor for exact atomic V2 create/fund postconditions; V1 allocator custody and lifecycle remain unchanged.
 - Added one-time V2 allocator funding-authority binding to support safe reserve/allocator deployment sequencing.
 - Exported the separately deployable V2 Shortfall family and the upstream `SP1MockVerifier` required by the explicitly local-only V2 deployment profile; this does not change V1 or establish a production verifier selection.
+- Fixed the deployable export reader so a source file whose basename differs from its declared contract name (e.g. `LocalShortfallSnapshot.s.sol` → `LocalSnapshotToken`, or `SP1VerifierGroth16.sol` → `SP1Verifier`) resolves the correct Foundry out directory from the allow-listed source path. This makes the generated bundle reproducible.
+- Root-anchored the `.gitignore` `deployables/`/`dist-deployables/` patterns so the deployable-export source under `scripts/_lib/deployables/` is no longer shadowed and is now committable, while the generated bundle output remains ignored.
