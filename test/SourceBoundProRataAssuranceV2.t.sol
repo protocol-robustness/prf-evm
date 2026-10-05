@@ -6,11 +6,15 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
 import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
-import {PrfSourceBoundStatementVerifierAdapterV2} from "../src/verification/adapters/PrfSourceBoundStatementVerifierAdapterV2.sol";
+import {
+    PrfSourceBoundStatementVerifierAdapterV2
+} from "../src/verification/adapters/PrfSourceBoundStatementVerifierAdapterV2.sol";
 import {ShortfallV2Commitments} from "../src/verification/ShortfallV2Commitments.sol";
 import {SourceBoundProRataControllerV2} from "../src/applications/shortfall/SourceBoundProRataControllerV2.sol";
 import {SourceBoundProRataAssuranceV2} from "../src/applications/shortfall/SourceBoundProRataAssuranceV2.sol";
-import {SourceBoundProRataRatificationControllerV2} from "../src/applications/shortfall/SourceBoundProRataRatificationControllerV2.sol";
+import {
+    SourceBoundProRataRatificationControllerV2
+} from "../src/applications/shortfall/SourceBoundProRataRatificationControllerV2.sol";
 import {ISourceBoundProRataAssuranceV2} from "../src/interfaces/ISourceBoundProRataAssuranceV2.sol";
 import {IOnchainShortfallReserveV2} from "../src/interfaces/IOnchainShortfallReserveV2.sol";
 import {OnchainShortfallReserveV2} from "../src/applications/shortfall/OnchainShortfallReserveV2.sol";
@@ -20,7 +24,10 @@ import {V2RatificationReserveMock} from "./mocks/V2RatificationReserveMock.sol";
 
 contract AssuranceV2TokenMock is ERC20 {
     constructor() ERC20("V2 Integration", "V2I") {}
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }
 
 contract AssuranceV2VerifierMock is ISP1Verifier {
@@ -38,21 +45,42 @@ contract AssuranceV2AdmissionMock is IPrfStatementAdmission {
         return receipts[id];
     }
 
-    function supportsInterface(bytes4) external pure returns (bool) { return true; }
-    function protocolGenesisRoot() external pure returns (bytes32) { return bytes32(0); }
-    function chainInstanceGenesisRoot() external pure returns (bytes32) { return bytes32(0); }
-    function expectedConfigurationRoot() external pure returns (bytes32) { return bytes32(0); }
-    function expectedConfigurationEpoch() external pure returns (uint64) { return 0; }
-    function admittedCount() external pure returns (uint256) { return 0; }
+    function supportsInterface(bytes4) external pure returns (bool) {
+        return true;
+    }
+
+    function protocolGenesisRoot() external pure returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function chainInstanceGenesisRoot() external pure returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function expectedConfigurationRoot() external pure returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function expectedConfigurationEpoch() external pure returns (uint64) {
+        return 0;
+    }
+
+    function admittedCount() external pure returns (uint256) {
+        return 0;
+    }
+
     function admitStatement(bytes32, bytes32, bytes calldata, bytes calldata) external pure returns (bytes32) {
         revert("NOT_IN_FIXTURE");
     }
 }
 
 contract AssuranceV2CallerMock {
-    function consume(SourceBoundProRataAssuranceV2 assurance, bytes32 operationId, bytes32 preparedRoot, bytes32 commitment)
-        external returns (ISourceBoundProRataAssuranceV2.RatificationPayload memory)
-    {
+    function consume(
+        SourceBoundProRataAssuranceV2 assurance,
+        bytes32 operationId,
+        bytes32 preparedRoot,
+        bytes32 commitment
+    ) external returns (ISourceBoundProRataAssuranceV2.RatificationPayload memory) {
         return assurance.consumeForRatification(operationId, preparedRoot, commitment);
     }
 }
@@ -88,24 +116,27 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         preparedController.prepareOperation(operation);
         assurance.bindRatificationController(address(controller));
 
-        publicValuesBytes = abi.encode(
-            adapter.PUBLIC_VALUES_DOMAIN(), preparedRoot, commitment, ALLOCATION, REALIZED, OPERATION);
-        admission.setReceipt(RECEIPT, IPrfStatementAdmission.AdmissionReceipt({
-            exists: true,
-            protocolGenesisRoot: bytes32(0),
-            chainInstanceGenesisRoot: bytes32(0),
-            configurationRoot: bytes32(0),
-            configurationEpoch: 0,
-            verifierRegistryRoot: bytes32(0),
-            verifierId: keccak256("source-bound-v2"),
-            verifierAdapter: address(adapter),
-            programVKey: adapter.programVKey(),
-            programElfSha256: adapter.programElfSha256(),
-            statementSchemaVersionHash: adapter.statementSchemaVersion(),
-            publicValuesSchema: adapter.publicValuesSchema(),
-            statementRoot: ALLOCATION,
-            publicValuesDigest: sha256(publicValuesBytes)
-        }));
+        publicValuesBytes =
+            abi.encode(adapter.PUBLIC_VALUES_DOMAIN(), preparedRoot, commitment, ALLOCATION, REALIZED, OPERATION);
+        admission.setReceipt(
+            RECEIPT,
+            IPrfStatementAdmission.AdmissionReceipt({
+                exists: true,
+                protocolGenesisRoot: bytes32(0),
+                chainInstanceGenesisRoot: bytes32(0),
+                configurationRoot: bytes32(0),
+                configurationEpoch: 0,
+                verifierRegistryRoot: bytes32(0),
+                verifierId: keccak256("source-bound-v2"),
+                verifierAdapter: address(adapter),
+                programVKey: adapter.programVKey(),
+                programElfSha256: adapter.programElfSha256(),
+                statementSchemaVersionHash: adapter.statementSchemaVersion(),
+                publicValuesSchema: adapter.publicValuesSchema(),
+                statementRoot: ALLOCATION,
+                publicValuesDigest: sha256(publicValuesBytes)
+            })
+        );
     }
 
     function test_PrepareFreezesValidatedV2RecordWithoutConsumption() public {
@@ -143,6 +174,8 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         V2RatificationReserveMock reserve = new V2RatificationReserveMock();
         SourceBoundProRataRatificationControllerV2 ratificationController =
             new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
+        preparedController.bindRatificationController(address(ratificationController));
+        ratificationController.bindExecutionCaller(address(this));
         integratedAssurance.bindRatificationController(address(ratificationController));
         ratificationController.registerPrepared(OPERATION);
         reserve.configure(commitment, false, 70, 18);
@@ -150,7 +183,10 @@ contract SourceBoundProRataAssuranceV2Test is Test {
 
         ratificationController.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
 
-        assertEq(uint8(ratificationController.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Funded));
+        assertEq(
+            uint8(ratificationController.state(OPERATION)),
+            uint8(SourceBoundProRataRatificationControllerV2.State.Funded)
+        );
         assertTrue(integratedAssurance.consumedAssurance(RECEIPT));
         (,, uint256 funded,) = ratificationController.result(OPERATION);
         assertEq(funded, 70);
@@ -162,6 +198,8 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         V2RatificationReserveMock reserve = new V2RatificationReserveMock();
         SourceBoundProRataRatificationControllerV2 ratificationController =
             new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
+        preparedController.bindRatificationController(address(ratificationController));
+        ratificationController.bindExecutionCaller(address(this));
         integratedAssurance.bindRatificationController(address(ratificationController));
         ratificationController.registerPrepared(OPERATION);
         reserve.configure(commitment, true, 70, 18);
@@ -170,9 +208,13 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         vm.expectRevert(bytes("RESERVE_RATIFICATION_REVERT"));
         ratificationController.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
 
-        assertEq(uint8(ratificationController.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Prepared));
+        assertEq(
+            uint8(ratificationController.state(OPERATION)),
+            uint8(SourceBoundProRataRatificationControllerV2.State.Prepared)
+        );
         assertFalse(integratedAssurance.consumedAssurance(RECEIPT));
-        SourceBoundProRataAssuranceV2.PreparedSourceAssurance memory prepared = integratedAssurance.preparedAssurance(OPERATION);
+        SourceBoundProRataAssuranceV2.PreparedSourceAssurance memory prepared =
+            integratedAssurance.preparedAssurance(OPERATION);
         assertEq(uint8(prepared.state), uint8(SourceBoundProRataAssuranceV2.AssuranceState.Prepared));
     }
 
@@ -186,6 +228,8 @@ contract SourceBoundProRataAssuranceV2Test is Test {
             new SourceBoundProRataAssuranceV2(admission, adapter, preparedController, address(this));
         SourceBoundProRataRatificationControllerV2 ratificationController =
             new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
+        preparedController.bindRatificationController(address(ratificationController));
+        ratificationController.bindExecutionCaller(address(this));
         integratedAssurance.bindRatificationController(address(ratificationController));
         reserve.bindRatificationAuthority(address(ratificationController));
         ratificationController.registerPrepared(OPERATION);
@@ -194,15 +238,27 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         token.approve(address(reserve), 100);
         reserve.deposit(100);
         OnchainShortfallReserveV2.EconomicState memory state = reserve.economicState(preparedRoot);
-        publicValuesBytes = abi.encode(adapter.PUBLIC_VALUES_DOMAIN(), preparedRoot, state.commitment, ALLOCATION, REALIZED, OPERATION);
-        admission.setReceipt(RECEIPT, IPrfStatementAdmission.AdmissionReceipt({
-            exists: true, protocolGenesisRoot: bytes32(0), chainInstanceGenesisRoot: bytes32(0),
-            configurationRoot: bytes32(0), configurationEpoch: 0, verifierRegistryRoot: bytes32(0),
-            verifierId: keccak256("source-bound-v2"), verifierAdapter: address(adapter),
-            programVKey: adapter.programVKey(), programElfSha256: adapter.programElfSha256(),
-            statementSchemaVersionHash: adapter.statementSchemaVersion(), publicValuesSchema: adapter.publicValuesSchema(),
-            statementRoot: ALLOCATION, publicValuesDigest: sha256(publicValuesBytes)
-        }));
+        publicValuesBytes =
+            abi.encode(adapter.PUBLIC_VALUES_DOMAIN(), preparedRoot, state.commitment, ALLOCATION, REALIZED, OPERATION);
+        admission.setReceipt(
+            RECEIPT,
+            IPrfStatementAdmission.AdmissionReceipt({
+                exists: true,
+                protocolGenesisRoot: bytes32(0),
+                chainInstanceGenesisRoot: bytes32(0),
+                configurationRoot: bytes32(0),
+                configurationEpoch: 0,
+                verifierRegistryRoot: bytes32(0),
+                verifierId: keccak256("source-bound-v2"),
+                verifierAdapter: address(adapter),
+                programVKey: adapter.programVKey(),
+                programElfSha256: adapter.programElfSha256(),
+                statementSchemaVersionHash: adapter.statementSchemaVersion(),
+                publicValuesSchema: adapter.publicValuesSchema(),
+                statementRoot: ALLOCATION,
+                publicValuesDigest: sha256(publicValuesBytes)
+            })
+        );
         integratedAssurance.prepareSourceAssurance(OPERATION, RECEIPT, publicValuesBytes);
 
         ratificationController.ratifyAndFund(OPERATION, state.commitment, bytes32(uint256(4)), 1, address(0x2222));
@@ -225,18 +281,30 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         assurance.prepareSourceAssurance(OPERATION, RECEIPT, corrupted);
     }
 
-    function _operation(address initiator) internal view returns (ShortfallV2Commitments.PreparedOperation memory operation) {
+    function _operation(address initiator)
+        internal
+        view
+        returns (ShortfallV2Commitments.PreparedOperation memory operation)
+    {
         operation = ShortfallV2Commitments.PreparedOperation({
             operationId: OPERATION,
             initiator: bytes32(uint256(uint160(initiator))),
             chainId: uint64(block.chainid),
-            reserve: bytes32(uint256(1)), token: bytes32(uint256(2)), allocator: bytes32(uint256(3)),
-            configurationRoot: bytes32(uint256(4)), configurationEpoch: 1,
-            sourceVerifierId: bytes32(uint256(5)), executionVerifierId: bytes32(uint256(6)),
-            sourceProgramVKey: bytes32(uint256(7)), sourceProgramElfSha256: bytes32(uint256(8)),
-            sourceStatementSchema: bytes32(uint256(9)), sourcePublicValuesSchema: bytes32(uint256(10)),
-            executionStatementSchema: bytes32(uint256(11)), executionPublicValuesSchema: bytes32(uint256(12)),
-            policyRoot: bytes32(uint256(13)), residualRecipient: bytes32(uint256(uint160(address(0x2222))))
+            reserve: bytes32(uint256(1)),
+            token: bytes32(uint256(2)),
+            allocator: bytes32(uint256(3)),
+            configurationRoot: bytes32(uint256(4)),
+            configurationEpoch: 1,
+            sourceVerifierId: bytes32(uint256(5)),
+            executionVerifierId: bytes32(uint256(6)),
+            sourceProgramVKey: bytes32(uint256(7)),
+            sourceProgramElfSha256: bytes32(uint256(8)),
+            sourceStatementSchema: bytes32(uint256(9)),
+            sourcePublicValuesSchema: bytes32(uint256(10)),
+            executionStatementSchema: bytes32(uint256(11)),
+            executionPublicValuesSchema: bytes32(uint256(12)),
+            policyRoot: bytes32(uint256(13)),
+            residualRecipient: bytes32(uint256(uint160(address(0x2222))))
         });
     }
 }

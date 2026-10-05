@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a successor prepared-operation commitment and preparation entry point that bind the beneficiary profile while preserving the frozen V2 commitment. Ratification also checks configuration root/epoch and residual recipient against prepared context, and atomically marks operations Ratified before funding so abandon/fund ordering has one successful terminal outcome.
+
 - Added the neutral `IPrfAuthority` compatibility surface for PRF core contracts while preserving the existing SEW-compatible ABI.
 - Added the local-only `PrfLocalAuthorityAdapter` deployable for synthetic PRF deployments.
 - Regenerated the deployable artifact bundle with the local authority adapter and preserved immutable-reference metadata for runtime verification.
