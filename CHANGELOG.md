@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added the successor entitlement ratification/funding route. It atomically forwards the admitted allocation binding, descriptor, EVM table root, count, total, and claim root into a separate allocator record, without fabricating the `realizedStatementRoot` required by the frozen V2 route. The existing V2 interfaces and operation path remain available unchanged.
+
+- Successor entitlement assurance now rejects admission receipts whose configuration root or epoch differs from the prepared operation commitment.
+
+- Added an additive assurance lifecycle for the source-bound entitlement V1 proof profile. It validates generic admission receipts against the prepared operation and freezes the entitlement table, count, total, and claim root for one-shot ratification handoff; the existing 192-byte V2 assurance remains unchanged.
+
 - Added a successor prepared-operation commitment and preparation entry point that bind the beneficiary profile while preserving the frozen V2 commitment. Ratification also checks configuration root/epoch and residual recipient against prepared context, and atomically marks operations Ratified before funding so abandon/fund ordering has one successful terminal outcome.
 
 - Added the additive `PrfSourceBoundEntitlementVerifierAdapterV1` profile for the fixed nine-word, 288-byte `prf/source-bound-entitlement-public-values.v1` projection. It enforces the frozen schema and representation descriptor roots while preserving the existing 192-byte source-bound V2 adapter. A focused Foundry test also verifies the actual B3 Groth16 proof fixture with the real SP1 verifier.
