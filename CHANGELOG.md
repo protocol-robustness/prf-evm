@@ -16,6 +16,8 @@
 
 - Added the read-only minimal source-bound V2 vector layer: schemas and a deterministic preflight for semantic, deployment-state, and proof vectors. It cross-checks Gate E manifest/proof linkage, canonical VKey/ELF/schema identity, 192-byte public values and digests, proof digest, prepared/reserve roots, and manifest digest without changing contracts or proof semantics. See `docs/source-bound-v2-vectors.md`.
 
+- Added `test/GateEV2GovernedVerifierActivation.t.sol`, which exercises the governed verifier activation for the source-bound V2 shortfall program using the canonical VKey/ELF pinned in the deployed local topology (`fixtures/source-bound-v2-identity.json`): register + seal the real adapter under a canonical registry root, drive the governed `SewConfigurationExecutor` transition (epoch 0 → 1), and instantiate a fresh `PrfStatementAdmission` bound to the post-transition configuration. It also asserts that an admission still bound to the pre-transition epoch is rejected. The final real-proof admission step is documented as gated on a matching SP1 proof for the canonical program, which no committed fixture currently satisfies.
+
 - Added the neutral `IPrfAuthority` compatibility surface for PRF core contracts while preserving the existing SEW-compatible ABI.
 - Added the local-only `PrfLocalAuthorityAdapter` deployable for synthetic PRF deployments.
 - Regenerated the deployable artifact bundle with the local authority adapter and preserved immutable-reference metadata for runtime verification.
