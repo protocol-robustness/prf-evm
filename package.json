@@ -12,7 +12,8 @@
     "deployables:test": "ts-node scripts/test-deployables.ts",
     "deployables:pack": "ts-node scripts/pack-deployables.ts",
     "deployables:all": "pnpm deployables:export && pnpm deployables:validate && pnpm deployables:test",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+        "gate-e": "bash scripts/gate-e-e2e.sh",
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prf-evm.gate-e-deployment.v1",
+  "type": "object",
+  "required": ["schema", "chainId", "contracts", "deploymentTxs", "economicReserveState", "provenance", "manifestDigest"],
+  "properties": {
+    "schema": { "const": "prf-evm.gate-e-deployment.v1" },
+    "chainId": { "const": 31337 },
+    "contracts": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" } },
+    "deploymentTxs": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" } },
+    "economicReserveState": {
+      "type": "object",
+      "required": ["grossBalance", "reservedBefore", "protectedAmount", "availableAmount", "revision"],
+      "properties": {
+        "grossBalance": { "type": "string", "pattern": "^[0-9]+$" },
+        "reservedBefore": { "type": "string", "pattern": "^[0-9]+$" },
+        "protectedAmount": { "type": "string", "pattern": "^[0-9]+$" },
+        "availableAmount": { "type": "string", "pattern": "^[0-9]+$" },
+        "revision": { "type": "string", "pattern": "^[0-9]+$" }
+      },
+      "additionalProperties": false
+    },
+    "blockNumber": { "type": "integer", "minimum": 0 },
+    "source": { "type": "string" },
+    "manifestDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "liveObservation": {
+      "type": "object",
+      "required": ["chainIdHex", "blockNumberHex", "blockNumber", "contractCode"],
+      "properties": { "chainIdHex": { "type": "string" }, "blockNumberHex": { "type": "string" }, "blockNumber": { "type": "integer", "minimum": 0 }, "contractCode": { "type": "object" } },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["live-derived", "canonical-external", "derived-manifest"],
+      "properties": {
+        "live-derived": { "type": "object" },
+        "canonical-external": { "type": "object" },
+        "derived-manifest": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

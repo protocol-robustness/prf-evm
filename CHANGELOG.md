@@ -6,6 +6,8 @@
 
 - Successor entitlement assurance now rejects admission receipts whose configuration root or epoch differs from the prepared operation commitment.
 
+- Fixed the Gate E real-proof handoff to materialize a deployment-bound source witness, pass its manifest/input/fixture paths to the prover, and validate the Rust CLI's snake_case Groth16 fixture format and pinned V2 identity before Foundry admission.
+
 - Added an additive assurance lifecycle for the source-bound entitlement V1 proof profile. It validates generic admission receipts against the prepared operation and freezes the entitlement table, count, total, and claim root for one-shot ratification handoff; the existing 192-byte V2 assurance remains unchanged.
 
 - Added a successor prepared-operation commitment and preparation entry point that bind the beneficiary profile while preserving the frozen V2 commitment. Ratification also checks configuration root/epoch and residual recipient against prepared context, and atomically marks operations Ratified before funding so abandon/fund ordering has one successful terminal outcome.
@@ -24,3 +26,4 @@
 - Exported the official `SP1VerifierGroth16` deployable (sp1-contracts v6.1.0, sp1 release 6.3.1) so the V2 local profile can bind the real verifier rather than the mock. The artifact is exposed under the `SP1VerifierGroth16` identity; the v6.1.0 source file declares contract `SP1Verifier`.
 - Fixed the deployable export reader so a source file whose basename differs from its declared contract name (e.g. `LocalShortfallSnapshot.s.sol` → `LocalSnapshotToken`, or `SP1VerifierGroth16.sol` → `SP1Verifier`) resolves the correct Foundry out directory from the allow-listed source path. This makes the generated bundle reproducible.
 - Root-anchored the `.gitignore` `deployables/`/`dist-deployables/` patterns so the deployable-export source under `scripts/_lib/deployables/` is no longer shadowed and is now committable, while the generated bundle output remains ignored.
+- Fixed deprecated contract-typed comparisons in `script/DeployGateE.s.sol` (explicit `address(...)` casts; behavior unchanged).
