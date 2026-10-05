@@ -215,6 +215,21 @@
       }
     },
     {
+      "artifactName": "SP1VerifierGroth16",
+      "contractName": "SP1Verifier",
+      "sourcePath": "lib/sp1-contracts/contracts/src/v6.1.0/SP1VerifierGroth16.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "origin": "sp1",
+      "notes": "Official SP1 Groth16 verifier (sp1-contracts v6.1.0, sp1 release 6.3.1). Canonical identity: VKey 0x0089abceac18acb8d0686b81ea542b933339353807924bc021a9fe3820888127, ELF SHA-256 0x1994d8b67004de3d5dfffc176434ae63f3d7ac32ae875d72093943ff8e82247b. The v6.1.0 source file declares contract `SP1Verifier`; the artifact is exposed here under the SP1VerifierGroth16 identity.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "official SP1 Groth16 verifier (v6.1.0 family); immutable programVKey/programElfSha256 bound by consuming adapters",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
       "artifactName": "SewConfigurationExecutor",
       "contractName": "SewConfigurationExecutor",
       "sourcePath": "src/integrations/sew/SewConfigurationExecutor.sol",

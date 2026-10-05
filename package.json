@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "description": "PRF EVM deployable-artifact export. Foundry-native; consumes the forge build output and emits a deterministic deployable bundle for the shared deployment repository.",
   "scripts": {
-    "compile": "forge build && forge build lib/sp1-contracts/contracts/src/SP1MockVerifier.sol",
+    "compile": "forge build && forge build lib/sp1-contracts/contracts/src/SP1MockVerifier.sol && forge build lib/sp1-contracts/contracts/src/v6.1.0/SP1VerifierGroth16.sol",
     "test": "forge test",
     "deployables:export": "ts-node scripts/export-deployables.ts",
     "deployables:validate": "ts-node scripts/validate-deployables.ts",

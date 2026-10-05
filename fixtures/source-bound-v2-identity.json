@@ -1,0 +1,31 @@
+{
+  "schema_version": "source-bound-v2-identity.v1",
+  "status": "official-circuit-verified",
+  "sp1_version": "6.3.1",
+  "sp1_source_commit": "8252c2905ce32964df68248117015c61ebb854db",
+  "sp1_circuit_version": "v6.1.0",
+  "verifier_contract_family": "sp1-contracts/v6.1.0",
+  "verifier_contract_source_commit": "d362972",
+  "verifier_hash": "0x4388a21c687fdd5f218d7e3d13190cac4c5355818d3605fd5fb811df468ee696",
+  "verifier_vk_root": "0x002f850ee998974d6cc00e50cd0814b098c05bfade466d28573240d057f25352",
+  "groth16_verifier_source_sha256": "0x48e1db5baca3b102242ebd88280b3689a088076688146cd0d98876f5dacb76d0",
+  "groth16_library_source_sha256": "0x01ab92508b9d56556ee247c7cb6b2ebd9c17835a4618896462b2a3a8708a50bf",
+  "sp1_generator_provenance": "official-succinct-sp1-v6.3.1-circuit-artifact-template",
+  "sp1_verifier_validation": "forge-test:PrfStatementAdmissionRealProofTest",
+  "proof_system": "groth16",
+  "program_id": "source-bound-v2-sp1-program.v2",
+  "vkey": "0x0089abceac18acb8d0686b81ea542b933339353807924bc021a9fe3820888127",
+  "elf_sha256": "0x1994d8b67004de3d5dfffc176434ae63f3d7ac32ae875d72093943ff8e82247b",
+  "statement_schema": "prf/onchain-shortfall-allocation-binding.v2",
+  "public_values_schema": "prf/onchain-shortfall-allocation-binding-public-values.v2",
+  "public_values_length_bytes": 192,
+  "canonical_public_values_sha256": "0x6cf0f75a8b242a393168c8f37d909d6a0d4f86abac0a480928e2c7c9c4fa8ffa",
+  "proof_fixture": {
+    "path": "source-bound-v2-proof-fixture.json",
+    "status": "verified",
+    "vkey": "0x0089abceac18acb8d0686b81ea542b933339353807924bc021a9fe3820888127",
+    "elf_sha256": "0x1994d8b67004de3d5dfffc176434ae63f3d7ac32ae875d72093943ff8e82247b",
+    "proof_sha256": "0x25f63c77b7ba7d3f3fbef865da8c1d8e0fa2dadc2b9290e2604fc4bdfb2678aa",
+    "public_values_sha256": "0x6cf0f75a8b242a393168c8f37d909d6a0d4f86abac0a480928e2c7c9c4fa8ffa"
+  }
+}
