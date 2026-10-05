@@ -7,6 +7,7 @@ import {IOnchainShortfallReserveV2} from "../../interfaces/IOnchainShortfallRese
 import {IShortfallAllocatorV2} from "../../interfaces/IShortfallAllocatorV2.sol";
 import {IShortfallEntitlementAllocatorV1} from "../../interfaces/IShortfallEntitlementAllocatorV1.sol";
 import {IOnchainShortfallEntitlementReserveV1} from "../../interfaces/IOnchainShortfallEntitlementReserveV1.sol";
+import {IEntitlementRepresentationV1} from "../../interfaces/IEntitlementRepresentationV1.sol";
 
 /// @notice V2 reserve accounting successor. This contract exposes deterministic
 /// economic-state commitments but does not yet ratify, create, or fund operations.
@@ -269,8 +270,7 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
             )
         );
 
-        IShortfallEntitlementAllocatorV1 entitlementAllocator =
-            IShortfallEntitlementAllocatorV1(address(allocator));
+        IShortfallEntitlementAllocatorV1 entitlementAllocator = IShortfallEntitlementAllocatorV1(address(allocator));
         entitlementAllocator.createEntitlement(
             request.operationId,
             request.allocationBindingRoot,
@@ -317,6 +317,15 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
             observationRoot, snapshotId, available, availabilityRevision
         );
         emit RatifiedAndFunded(request.operationId, observationRoot, available, availabilityRevision);
+    }
+
+    /// @notice Forwards activation after comparing the deployed logical table
+    ///         with the roots admitted and funded for this operation.
+    function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation)
+        external
+        onlyRatificationAuthority
+    {
+        IShortfallEntitlementAllocatorV1(address(allocator)).activateEntitlement(operationId, representation);
     }
 
     function economicState(bytes32 preparedOperationRoot) public view returns (EconomicState memory state) {

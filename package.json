@@ -15,7 +15,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
         "gate-e": "bash scripts/gate-e-e2e.sh",
             "source-bound-v2:validate": "ts-node scripts/validate-source-bound-v2-vectors.ts",
-                "source-bound-v2:generate": "ts-node scripts/generate-source-bound-v2-vectors.ts"
+    "source-bound-v2:generate": "ts-node scripts/generate-source-bound-v2-vectors.ts",
+    "gate-e-entitlement:deploy": "bash scripts/deploy-gate-e-entitlement.sh",
+    "gate-e-entitlement:witness": "bash scripts/prepare-gate-e-entitlement-witness.sh",
+    "gate-e-entitlement:fixture": "node scripts/adapt-gate-e-entitlement-fixture.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

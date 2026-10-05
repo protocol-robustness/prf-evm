@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added the logical entitlement representation interface and a storage-backed reference implementation for the successor table-root profile. Successor activation now checks the admitted table root, count, total, and funded amount against the representation before recording `Activated`; this is unit-tested with mock admission and is not deployment-qualified until the deployment-derived Gate E proof path passes.
+
+- Added a separate deployment-bound Gate E producer, B2-vector witness materializer, and proof-fixture adapter for the 288-byte entitlement profile. The new Foundry path checks deployment/VKey/ELF/witness provenance, admits the real Groth16 proof, and funds the exact entitlement total through the successor ratification route; the historical 192-byte runner remains separate.
+
 - Added the successor entitlement ratification/funding route. It atomically forwards the admitted allocation binding, descriptor, EVM table root, count, total, and claim root into a separate allocator record, without fabricating the `realizedStatementRoot` required by the frozen V2 route. The existing V2 interfaces and operation path remain available unchanged.
 
 - Successor entitlement assurance now rejects admission receipts whose configuration root or epoch differs from the prepared operation commitment.

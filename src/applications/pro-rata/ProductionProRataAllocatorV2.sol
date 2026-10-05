@@ -4,6 +4,7 @@ pragma solidity ^0.8.33;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IShortfallAllocatorV2} from "../../interfaces/IShortfallAllocatorV2.sol";
 import {IShortfallEntitlementAllocatorV1} from "../../interfaces/IShortfallEntitlementAllocatorV1.sol";
+import {IEntitlementRepresentationV1} from "../../interfaces/IEntitlementRepresentationV1.sol";
 
 /// @notice V2 custody successor used by atomic Shortfall ratification.
 /// @dev This deliberately exposes only create/fund. Allocation activation and
@@ -23,6 +24,7 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
     error Reentrant();
     error FundingAuthorityAlreadyBound();
     error InvalidFundingAuthority();
+    error EntitlementRepresentationMismatch();
 
     modifier onlyAuthority() {
         if (msg.sender != fundingAuthority) revert OnlyOperationAuthority(msg.sender);
@@ -59,16 +61,15 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
         uint256 amount,
         address residualRecipient
     ) external onlyAuthority {
-        if (operationId == bytes32(0) || allocationBindingRoot == bytes32(0)
-            || realizedStatementRoot == bytes32(0) || address(token) == address(0)
-            || amount == 0 || residualRecipient == address(0)) revert InvalidOperation();
         if (
-            _operations[operationId].state != State.None
-                || _entitlementOperations[operationId].state != State.None
-        ) revert InvalidState(_operations[operationId].state);
-        _operations[operationId] = Operation(
-            State.Created, allocationBindingRoot, realizedStatementRoot, token, amount, residualRecipient
-        );
+            operationId == bytes32(0) || allocationBindingRoot == bytes32(0) || realizedStatementRoot == bytes32(0)
+                || address(token) == address(0) || amount == 0 || residualRecipient == address(0)
+        ) revert InvalidOperation();
+        if (_operations[operationId].state != State.None || _entitlementOperations[operationId].state != State.None) {
+            revert InvalidState(_operations[operationId].state);
+        }
+        _operations[operationId] =
+            Operation(State.Created, allocationBindingRoot, realizedStatementRoot, token, amount, residualRecipient);
     }
 
     function fund(bytes32 operationId) external onlyAuthority nonReentrant {
@@ -77,10 +78,12 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
         uint256 reserveBefore = current.token.balanceOf(msg.sender);
         uint256 allocatorBefore = current.token.balanceOf(address(this));
         if (!current.token.transferFrom(msg.sender, address(this), current.amount)) revert TokenDeltaMismatch();
-        if (reserveBefore < current.token.balanceOf(msg.sender)
-            || reserveBefore - current.token.balanceOf(msg.sender) != current.amount
-            || current.token.balanceOf(address(this)) < allocatorBefore
-            || current.token.balanceOf(address(this)) - allocatorBefore != current.amount) {
+        if (
+            reserveBefore < current.token.balanceOf(msg.sender)
+                || reserveBefore - current.token.balanceOf(msg.sender) != current.amount
+                || current.token.balanceOf(address(this)) < allocatorBefore
+                || current.token.balanceOf(address(this)) - allocatorBefore != current.amount
+        ) {
             revert TokenDeltaMismatch();
         }
         current.state = State.Funded;
@@ -123,7 +126,8 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
             allocationClaimRoot,
             token,
             amount,
-            residualRecipient
+            residualRecipient,
+            address(0)
         );
     }
 
@@ -148,5 +152,23 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
         returns (IShortfallEntitlementAllocatorV1.EntitlementOperation memory)
     {
         return _entitlementOperations[operationId];
+    }
+
+    /// @notice Makes a funded successor allocation executable only after its
+    ///         deployed logical representation matches the admitted tuple.
+    function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation)
+        external
+        onlyAuthority
+    {
+        IShortfallEntitlementAllocatorV1.EntitlementOperation storage current = _entitlementOperations[operationId];
+        if (current.state != State.Funded) revert InvalidState(current.state);
+        if (
+            address(representation).code.length == 0 || representation.logicalRoot() != current.evmEntitlementTableRoot
+                || representation.entitlementCount() != current.entitlementCount
+                || representation.entitlementTotal() != current.entitlementTotal
+                || current.amount != current.entitlementTotal
+        ) revert EntitlementRepresentationMismatch();
+        current.representation = address(representation);
+        current.state = State.Activated;
     }
 }

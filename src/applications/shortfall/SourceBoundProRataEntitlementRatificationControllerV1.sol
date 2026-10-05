@@ -5,6 +5,7 @@ import {IOnchainShortfallReserveV2} from "../../interfaces/IOnchainShortfallRese
 import {IOnchainShortfallEntitlementReserveV1} from "../../interfaces/IOnchainShortfallEntitlementReserveV1.sol";
 import {SourceBoundProRataControllerV2} from "./SourceBoundProRataControllerV2.sol";
 import {SourceBoundProRataEntitlementAssuranceV1} from "./SourceBoundProRataEntitlementAssuranceV1.sol";
+import {IEntitlementRepresentationV1} from "../../interfaces/IEntitlementRepresentationV1.sol";
 
 /// @notice Atomic ratification/funding handoff for the successor entitlement profile.
 /// @dev Additive to the frozen V2 controller, whose ABI carries realizedStatementRoot.
@@ -13,7 +14,8 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
         None,
         Prepared,
         Ratifying,
-        Funded
+        Funded,
+        Activated
     }
 
     SourceBoundProRataControllerV2 public immutable preparedController;
@@ -36,6 +38,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
 
     event ExecutionCallerBound(address indexed caller);
     event EntitlementRatificationFunded(bytes32 indexed operationId, bytes32 indexed receiptId, uint256 amount);
+    event EntitlementOperationActivated(bytes32 indexed operationId, address indexed representation);
 
     constructor(
         SourceBoundProRataControllerV2 preparedController_,
@@ -119,5 +122,13 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
         result[operationId] = funded;
         state[operationId] = State.Funded;
         emit EntitlementRatificationFunded(operationId, payload.receiptId, funded.fundedAmount);
+    }
+
+    function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation) external {
+        if (!executionCallerBound || msg.sender != executionCaller) revert OnlyExecutionCaller(msg.sender);
+        if (state[operationId] != State.Funded) revert InvalidState(state[operationId]);
+        IOnchainShortfallEntitlementReserveV1(address(reserve)).activateEntitlement(operationId, representation);
+        state[operationId] = State.Activated;
+        emit EntitlementOperationActivated(operationId, address(representation));
     }
 }

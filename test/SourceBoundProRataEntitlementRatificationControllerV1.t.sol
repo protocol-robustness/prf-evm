@@ -20,6 +20,10 @@ import {
 } from "../src/verification/adapters/PrfSourceBoundEntitlementVerifierAdapterV1.sol";
 import {SourceBoundEntitlementV1Commitments} from "../src/verification/SourceBoundEntitlementV1Commitments.sol";
 import {IShortfallEntitlementAllocatorV1} from "../src/interfaces/IShortfallEntitlementAllocatorV1.sol";
+import {IEntitlementRepresentationV1} from "../src/interfaces/IEntitlementRepresentationV1.sol";
+import {
+    PublicPackedEntitlementRepresentationV1
+} from "../src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol";
 
 contract EntitlementRatificationToken is ERC20 {
     constructor() ERC20("Entitlement Gate E", "EGE") {}
@@ -77,7 +81,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
     bytes32 private constant OPERATION = keccak256("successor-ratification-op");
     bytes32 private constant RECEIPT = keccak256("successor-ratification-receipt");
     bytes32 private constant ALLOCATION = keccak256("successor-ratification-allocation");
-    bytes32 private constant TABLE = keccak256("successor-ratification-table");
+    bytes32 private TABLE;
     bytes32 private constant CLAIM = keccak256("successor-ratification-claim");
     address private constant RESIDUAL = address(0x4444);
 
@@ -89,6 +93,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
     SourceBoundProRataEntitlementRatificationControllerV1 private ratification;
     EntitlementRatificationAdmissionMock private admission;
     PrfSourceBoundEntitlementVerifierAdapterV1 private adapter;
+    PublicPackedEntitlementRepresentationV1 private representation;
     bytes32 private preparedRoot;
     bytes32 private reserveCommitment;
 
@@ -111,6 +116,12 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         token.approve(address(reserve), 100);
         reserve.deposit(100);
         reserveCommitment = reserve.economicState(preparedRoot).commitment;
+
+        bytes32[] memory commitments = new bytes32[](2);
+        commitments[0] = keccak256("reference-entitlement-0");
+        commitments[1] = keccak256("reference-entitlement-1");
+        representation = new PublicPackedEntitlementRepresentationV1(commitments, 90);
+        TABLE = representation.logicalRoot();
 
         assurance = new SourceBoundProRataEntitlementAssuranceV1(admission, adapter, prepared, address(this));
         ratification = new SourceBoundProRataEntitlementRatificationControllerV1(prepared, assurance, reserve);
@@ -177,6 +188,59 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         assertEq(token.balanceOf(address(reserve)), 101);
         assertEq(token.balanceOf(address(allocator)), 0);
         assertEq(reserve.totalReserved(), 0);
+    }
+
+    function test_ActivationRequiresTheAdmittedLogicalRootCountAndTotal() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+
+        bytes32[] memory wrongCommitments = new bytes32[](2);
+        wrongCommitments[0] = keccak256("wrong-entitlement-0");
+        wrongCommitments[1] = keccak256("wrong-entitlement-1");
+        PublicPackedEntitlementRepresentationV1 wrong =
+            new PublicPackedEntitlementRepresentationV1(wrongCommitments, 90);
+        vm.expectRevert(ProductionProRataAllocatorV2.EntitlementRepresentationMismatch.selector);
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(wrong)));
+
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory stillFunded =
+            allocator.entitlementOperation(OPERATION);
+        assertEq(uint8(stillFunded.state), uint8(IShortfallAllocatorV2.State.Funded));
+        assertEq(stillFunded.representation, address(0));
+        assertEq(token.balanceOf(address(allocator)), 90);
+
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(representation)));
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory activated =
+            allocator.entitlementOperation(OPERATION);
+        assertEq(uint8(activated.state), uint8(IShortfallAllocatorV2.State.Activated));
+        assertEq(activated.representation, address(representation));
+        assertEq(activated.allocationClaimRoot, CLAIM);
+        assertEq(
+            uint8(ratification.state(OPERATION)),
+            uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Activated)
+        );
+    }
+
+    function test_ActivationRejectsCountAndTotalMismatches() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+
+        bytes32[] memory commitments = new bytes32[](1);
+        commitments[0] = keccak256("different-count");
+        PublicPackedEntitlementRepresentationV1 wrongCount =
+            new PublicPackedEntitlementRepresentationV1(commitments, 90);
+        vm.expectRevert(ProductionProRataAllocatorV2.EntitlementRepresentationMismatch.selector);
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(wrongCount)));
+
+        commitments = new bytes32[](2);
+        commitments[0] = keccak256("reference-entitlement-0");
+        commitments[1] = keccak256("reference-entitlement-1");
+        PublicPackedEntitlementRepresentationV1 wrongTotal =
+            new PublicPackedEntitlementRepresentationV1(commitments, 89);
+        vm.expectRevert(ProductionProRataAllocatorV2.EntitlementRepresentationMismatch.selector);
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(wrongTotal)));
+        assertEq(uint8(allocator.entitlementOperation(OPERATION).state), uint8(IShortfallAllocatorV2.State.Funded));
     }
 
     function _prepareProofTuple() private {
