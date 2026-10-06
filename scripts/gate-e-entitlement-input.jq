@@ -22,6 +22,10 @@ $manifest[0] as $m
     "beneficiary-profile": $m.beneficiaryProfile,
     "residual-recipient": $m.localOnly.residualRecipient
   })
+| .["prepared-operation"] |= with_entries(
+    if (.value | type) == "string" and (.value | startswith("0x"))
+    then .value |= ascii_downcase else . end
+  )
 | .["economic-reserve-state"] = {
     "gross-balance": ($m.economicReserveState.grossBalance | tostring),
     "reserved-before": ($m.economicReserveState.reservedBefore | tostring),

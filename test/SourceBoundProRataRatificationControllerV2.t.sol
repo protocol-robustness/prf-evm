@@ -32,6 +32,7 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
         prepared = new SourceBoundProRataControllerV2();
         assurance = new V2RatificationAssuranceMock();
         reserve = new V2RatificationReserveMock();
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
         preparedRoot = ShortfallV2Commitments.preparedOperationRoot(_operation(address(0x1111)));
         assurance.configure(ISourceBoundProRataAssuranceV2.RatificationPayload(preparedRoot, C, A, R, OP, RECEIPT));
         reserve.configure(C, false, 70, 18);
@@ -180,6 +181,45 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
         prepared.abandonPreparedOperation(OP);
     }
 
+    function test_LegacyDeclaredWrongChainAndAllocatorRejectBeforeConsumption() public {
+        ShortfallV2Commitments.PreparedOperation memory wrongChain = _operation(address(0x1111));
+        wrongChain.operationId = keccak256("wrong-chain");
+        wrongChain.chainId = uint64(block.chainid + 1);
+        _assertRejectedScope(wrongChain);
+
+        ShortfallV2Commitments.PreparedOperation memory wrongAllocator = _operation(address(0x1111));
+        wrongAllocator.operationId = keccak256("wrong-allocator");
+        wrongAllocator.allocator = bytes32(uint256(uint160(address(0xBAD))));
+        _assertRejectedScope(wrongAllocator);
+    }
+
+    function test_DifferentControllerInstanceRejectsBeforeConsumption() public {
+        SourceBoundProRataRatificationControllerV2 other =
+            new SourceBoundProRataRatificationControllerV2(prepared, assurance, reserve);
+        other.bindExecutionCaller(address(this));
+        other.registerPrepared(OP);
+        vm.expectRevert(SourceBoundProRataRatificationControllerV2.PreparedContextMismatch.selector);
+        other.ratifyAndFund(OP, C, bytes32(uint256(4)), 1, address(0x2222));
+        assertEq(uint8(other.state(OP)), uint8(SourceBoundProRataRatificationControllerV2.State.Prepared));
+        assertFalse(assurance.consumed(RECEIPT));
+        assertEq(uint8(controller.state(OP)), uint8(SourceBoundProRataRatificationControllerV2.State.Prepared));
+    }
+
+    function _assertRejectedScope(ShortfallV2Commitments.PreparedOperation memory operation) private {
+        vm.prank(address(0x1111));
+        bytes32 root = prepared.prepareOperation(operation);
+        controller.registerPrepared(operation.operationId);
+        vm.expectRevert(SourceBoundProRataRatificationControllerV2.PreparedContextMismatch.selector);
+        controller.ratifyAndFund(operation.operationId, C, bytes32(uint256(4)), 1, address(0x2222));
+        assertEq(uint8(prepared.state(operation.operationId)), uint8(SourceBoundProRataControllerV2.State.Prepared));
+        assertEq(
+            uint8(controller.state(operation.operationId)),
+            uint8(SourceBoundProRataRatificationControllerV2.State.Prepared)
+        );
+        assertFalse(assurance.consumed(RECEIPT));
+        assertEq(prepared.preparedOperationRoot(operation.operationId), root);
+    }
+
     function _operation(address initiator)
         internal
         view
@@ -189,9 +229,9 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
             operationId: OP,
             initiator: bytes32(uint256(uint160(initiator))),
             chainId: uint64(block.chainid),
-            reserve: bytes32(uint256(1)),
-            token: bytes32(uint256(2)),
-            allocator: bytes32(uint256(3)),
+            reserve: bytes32(uint256(uint160(address(reserve)))),
+            token: bytes32(uint256(uint160(address(reserve.token())))),
+            allocator: bytes32(uint256(uint160(address(reserve.allocator())))),
             configurationRoot: bytes32(uint256(4)),
             configurationEpoch: 1,
             sourceVerifierId: bytes32(uint256(5)),

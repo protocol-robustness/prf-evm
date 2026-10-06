@@ -26,6 +26,7 @@ contract SourceBoundProRataControllerV2 {
     mapping(bytes32 => address) public preparedInitiator;
     mapping(bytes32 => bytes32) public preparedConfigurationRoot;
     mapping(bytes32 => uint64) public preparedConfigurationEpoch;
+    mapping(bytes32 => uint128) public preparedChainId;
     mapping(bytes32 => address) public preparedReserve;
     mapping(bytes32 => address) public preparedToken;
     mapping(bytes32 => address) public preparedAllocator;
@@ -97,6 +98,10 @@ contract SourceBoundProRataControllerV2 {
         preparedInitiator[operation.operationId] = initiator;
         preparedConfigurationRoot[operation.operationId] = operation.configurationRoot;
         preparedConfigurationEpoch[operation.operationId] = operation.configurationEpoch;
+        preparedChainId[operation.operationId] = operation.chainId;
+        preparedReserve[operation.operationId] = _canonicalAddress(operation.reserve);
+        preparedToken[operation.operationId] = _canonicalAddress(operation.token);
+        preparedAllocator[operation.operationId] = _canonicalAddress(operation.allocator);
         preparedResidualRecipient[operation.operationId] = operation.residualRecipient;
         state[operation.operationId] = State.Prepared;
         emit OperationPrepared(operation.operationId, root, initiator);
@@ -120,6 +125,7 @@ contract SourceBoundProRataControllerV2 {
         preparedConfigurationRoot[operation.operationId] = operation.configurationRoot;
         if (operation.configurationEpoch > type(uint64).max) revert InvalidOperation();
         preparedConfigurationEpoch[operation.operationId] = uint64(operation.configurationEpoch);
+        preparedChainId[operation.operationId] = operation.chainId;
         preparedReserve[operation.operationId] = operation.reserve;
         preparedToken[operation.operationId] = operation.token;
         preparedAllocator[operation.operationId] = operation.allocator;
@@ -134,6 +140,11 @@ contract SourceBoundProRataControllerV2 {
         state[operation.operationId] = State.Prepared;
         emit OperationPrepared(operation.operationId, root, operation.initiator);
         emit EntitlementOperationPrepared(operation.operationId, root, profileWord);
+    }
+
+    function _canonicalAddress(bytes32 word) private pure returns (address value) {
+        value = address(uint160(uint256(word)));
+        if (bytes32(uint256(uint160(value))) != word) revert InvalidOperation();
     }
 
     function abandonPreparedOperation(bytes32 operationId) external {

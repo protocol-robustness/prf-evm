@@ -260,6 +260,19 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         admission.setReceipt(RECEIPT, receipt);
     }
 
+    function test_ExecutionChainMismatchRejectsBeforeAssuranceConsumption() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        vm.chainId(block.chainid + 1);
+        vm.expectRevert(SourceBoundProRataEntitlementRatificationControllerV1.PreparedContextMismatch.selector);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+        assertEq(uint8(ratification.state(OPERATION)), uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Prepared));
+        assertFalse(assurance.consumedAssurance(RECEIPT));
+        assertEq(token.balanceOf(address(reserve)), 100);
+        assertEq(token.balanceOf(address(allocator)), 0);
+        assertEq(token.allowance(address(reserve), address(allocator)), 0);
+    }
+
     function _publicValues() private view returns (bytes memory) {
         return abi.encode(
             adapter.PUBLIC_VALUES_SCHEMA(),

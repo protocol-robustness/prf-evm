@@ -97,10 +97,11 @@ contract SourceBoundProRataRatificationControllerV2 {
                     != preparedController.preparedResidualRecipient(operationId)
         ) revert PreparedContextMismatch();
         if (
-            preparedController.successorEntitlementProfile(operationId)
-                && (preparedController.preparedReserve(operationId) != address(reserve)
-                    || preparedController.preparedToken(operationId) != address(reserve.token())
-                    || preparedController.preparedAllocator(operationId) != address(reserve.allocator()))
+            preparedController.preparedChainId(operationId) != block.chainid
+                || preparedController.preparedReserve(operationId) != address(reserve)
+                || preparedController.preparedToken(operationId) != address(reserve.token())
+                || preparedController.preparedAllocator(operationId) != address(reserve.allocator())
+                || preparedController.ratificationController() != address(this)
         ) revert PreparedContextMismatch();
         state[operationId] = State.Ratifying;
         bytes32 preparedRoot = preparedController.preparedOperationRoot(operationId);

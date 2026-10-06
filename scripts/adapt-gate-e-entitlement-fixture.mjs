@@ -61,6 +61,11 @@ expectedInput['prepared-operation'] = {
   'beneficiary-profile': manifest.beneficiaryProfile,
   'residual-recipient': manifest.localOnly.residualRecipient,
 };
+for (const [key, value] of Object.entries(expectedInput['prepared-operation'])) {
+  if (typeof value === 'string' && value.startsWith('0x')) {
+    expectedInput['prepared-operation'][key] = value.toLowerCase();
+  }
+}
 expectedInput['economic-reserve-state'] = {
   'gross-balance': String(manifest.economicReserveState.grossBalance),
   'reserved-before': String(manifest.economicReserveState.reservedBefore),

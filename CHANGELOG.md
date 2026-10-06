@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Both funding controllers reject prepared chain, reserve, token, allocator, and bound controller-instance mismatches before assurance consumption or funding. Legacy roots and proof public values remain unchanged.
+- V2 ordinary reservation creation requires an immutable future deadline. Permissionless expiry at `timestamp >= expiresAt` releases reserved availability and increments revision without moving tokens. Reservation state getter and creation event include the deadline; existing enum values remain stable.
+
+
+- Gate E successor witness materialization normalizes deployment hex values to the reviewed canonical lowercase encoding; fixture reconstruction enforces the same bytes.
+
 - Added the logical entitlement representation interface and a storage-backed reference implementation for the successor table-root profile. Successor activation now checks the admitted table root, count, total, and funded amount against the representation before recording `Activated`; this is unit-tested with mock admission and is not deployment-qualified until the deployment-derived Gate E proof path passes.
 
 - Added a separate deployment-bound Gate E producer, B2-vector witness materializer, and proof-fixture adapter for the 288-byte entitlement profile. The new Foundry path checks deployment/VKey/ELF/witness provenance, admits the real Groth16 proof, and funds the exact entitlement total through the successor ratification route; the historical 192-byte runner remains separate.

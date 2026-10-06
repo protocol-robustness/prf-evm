@@ -1,0 +1,11 @@
+# V2 ordinary reservation lifecycle
+
+`reserveForOtherObligation(id, amount, expiresAt)` is authority-only and requires a fresh nonzero ID, positive amount, available capital, and a future deadline. The deadline cannot be extended. Authority release moves `Active -> Released`. Anyone may move `Active -> Expired` when `block.timestamp >= expiresAt`; before the deadline expiry rejects. Either transition retains the amount and deadline, releases capacity, increments revision once, and permanently consumes the ID. Neither moves tokens or calls the allocator. Time alone does not update accounting; an overdue reservation remains excluded until released or expired.
+
+Ordinary reservations are exclusion holds and have no fund-from-reservation-ID method. Both Shortfall funding routes consume only current unreserved availability. After expiry, capacity may fund a separately prepared operation using a fresh reserve commitment; the previous commitment is stale. Reservation IDs and operation IDs are separate namespaces.
+
+Both funding controllers validate the declared chain, reserve, token, allocator, and bound controller instance before assurance consumption. Legacy noncanonical address words reject instead of truncating. Frozen prepared-root inputs and proof public values are unchanged. This does not resolve the separate `prf.prepared-operation.v2` identity collision.
+
+Supported assets must be exact-transfer, non-rebasing ERC-20s with conventional `balanceOf` semantics. Exact-delta checks remain; they do not certify arbitrary token behavior. Bootstrap deposits below the protected floor remain allowed, but economic-state queries, reservations, and both funding routes reject until the floor is satisfied. Once operational, `gross >= protected + reserved` and `available = gross - protected - reserved`.
+
+The current allocator has no cancel/refund or withdrawal route after funding. The physical reserve-to-allocator-to-cancel-to-reserve round trip remains a downstream lifecycle blocker; no refund logic is added to the reserve. Operation abandonment remains scoped to prepared work. No reserve-wide invalidation is added.

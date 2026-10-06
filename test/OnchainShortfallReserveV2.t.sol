@@ -55,7 +55,7 @@ contract OnchainShortfallReserveV2Test is Test {
         assertEq(beforeState.revision, 0);
 
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20);
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
         OnchainShortfallReserveV2.EconomicState memory afterState = reserve.economicState(PREPARED);
         assertEq(afterState.reservedBefore, 20);
         assertEq(afterState.revision, 1);
@@ -66,10 +66,39 @@ contract OnchainShortfallReserveV2Test is Test {
         token.approve(address(reserve), 100);
         reserve.deposit(100);
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20);
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
         vm.prank(authority);
         reserve.releaseOtherObligationReservation(RESERVATION);
         assertEq(reserve.availabilityRevision(), 2);
+    }
+
+    function test_ReservationExpiryIsPermissionlessAndPreservesCustody() public {
+        token.mint(address(this), 100);
+        token.approve(address(reserve), 100);
+        reserve.deposit(100);
+        uint256 deadline = block.timestamp + 1 days;
+        vm.prank(authority);
+        reserve.reserveForOtherObligation(RESERVATION, 20, deadline);
+        vm.warp(deadline - 1);
+        vm.expectRevert(OnchainShortfallReserveV2.ReservationNotExpired.selector);
+        reserve.expireOtherObligationReservation(RESERVATION);
+        vm.warp(deadline);
+        reserve.expireOtherObligationReservation(RESERVATION);
+        (OnchainShortfallReserveV2.ReservationState state, uint256 amount, uint256 expiresAt) =
+            reserve.reservations(RESERVATION);
+        assertEq(uint8(state), uint8(OnchainShortfallReserveV2.ReservationState.Expired));
+        assertEq(amount, 20);
+        assertEq(expiresAt, deadline);
+        assertEq(reserve.totalReserved(), 0);
+        assertEq(reserve.availabilityRevision(), 2);
+        assertEq(token.balanceOf(address(reserve)), 100);
+        assertEq(token.balanceOf(address(allocator)), 0);
+        assertEq(token.allowance(address(reserve), address(allocator)), 0);
+        vm.expectRevert(OnchainShortfallReserveV2.InvalidReservation.selector);
+        reserve.expireOtherObligationReservation(RESERVATION);
+        vm.prank(authority);
+        vm.expectRevert(OnchainShortfallReserveV2.InvalidReservation.selector);
+        reserve.releaseOtherObligationReservation(RESERVATION);
     }
 
     function test_RatifyAndFundComparesCommitmentAndClearsEphemeralReservation() public {
@@ -97,7 +126,7 @@ contract OnchainShortfallReserveV2Test is Test {
         reserve.deposit(100);
         OnchainShortfallReserveV2.EconomicState memory state = reserve.economicState(PREPARED);
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 1);
+        reserve.reserveForOtherObligation(RESERVATION, 1, block.timestamp + 1 days)
         vm.prank(authority);
         vm.expectRevert();
         reserve.ratifyAndFund(
@@ -171,7 +200,7 @@ contract OnchainShortfallReserveV2Test is Test {
     function test_EachSuccessfulAvailabilityMutationAdvancesRevisionExactlyOnce() public {
         _deposit100();
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20);
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
         assertEq(reserve.availabilityRevision(), 1, "ordinary reservation");
 
         vm.prank(authority);

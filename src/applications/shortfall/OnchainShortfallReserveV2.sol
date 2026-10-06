@@ -29,12 +29,14 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
     enum ReservationState {
         None,
         Active,
-        Released
+        Released,
+        Expired
     }
 
     struct Reservation {
         ReservationState state;
         uint256 amount;
+        uint256 expiresAt;
     }
 
     struct EconomicState {
@@ -63,6 +65,7 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
 
     error ZeroValue();
     error InvalidReservation();
+    error ReservationNotExpired();
     error AccountingInconsistent();
     error InsufficientAvailability();
     error TokenDeltaMismatch();
@@ -76,8 +79,9 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
     error AllowanceMismatch();
 
     event Deposited(address indexed from, uint256 amount);
-    event ReservationCreated(bytes32 indexed reservationId, uint256 amount, uint64 revision);
+    event ReservationCreated(bytes32 indexed reservationId, uint256 amount, uint256 expiresAt, uint64 revision);
     event ReservationReleased(bytes32 indexed reservationId, uint256 amount, uint64 revision);
+    event ReservationExpired(bytes32 indexed reservationId, uint256 amount, uint64 revision);
     event RatificationAuthorityBound(address indexed controller);
     event RatifiedAndFunded(
         bytes32 indexed operationId, bytes32 indexed observationRoot, uint256 amount, uint64 revision
@@ -124,7 +128,7 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
         allocator = allocator_;
     }
 
-    /// @dev V2 reference token policy is standard, non-rebasing, non-fee-on-transfer ERC-20.
+    /// @dev Supported assets are exact-transfer, non-rebasing ERC-20s with conventional balanceOf semantics.
     function deposit(uint256 amount) external {
         if (amount == 0) revert ZeroValue();
         uint256 sourceBefore = token.balanceOf(msg.sender);
@@ -137,17 +141,21 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
         emit Deposited(msg.sender, amount);
     }
 
-    function reserveForOtherObligation(bytes32 reservationId, uint256 amount) external onlyApplicationAuthority {
-        if (reservationId == bytes32(0) || amount == 0 || reservations[reservationId].state != ReservationState.None) {
+    /// @notice Creates an exclusion hold, not a fundable operation. Its deadline cannot be extended.
+    function reserveForOtherObligation(bytes32 reservationId, uint256 amount, uint256 expiresAt)
+        external onlyApplicationAuthority
+    {
+        if (reservationId == bytes32(0) || amount == 0 || expiresAt <= block.timestamp
+                || reservations[reservationId].state != ReservationState.None) {
             revert InvalidReservation();
         }
         uint256 gross = token.balanceOf(address(this));
         uint256 available = _available(gross);
         if (amount > available) revert InsufficientAvailability();
-        reservations[reservationId] = Reservation(ReservationState.Active, amount);
+        reservations[reservationId] = Reservation(ReservationState.Active, amount, expiresAt);
         totalReserved += amount;
         ++availabilityRevision;
-        emit ReservationCreated(reservationId, amount, availabilityRevision);
+        emit ReservationCreated(reservationId, amount, expiresAt, availabilityRevision);
     }
 
     function releaseOtherObligationReservation(bytes32 reservationId) external onlyApplicationAuthority {
@@ -158,6 +166,19 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
         totalReserved -= amount;
         ++availabilityRevision;
         emit ReservationReleased(reservationId, amount, availabilityRevision);
+    }
+
+    /// @notice Permissionlessly frees a hold at or after its immutable deadline.
+    /// Time alone does not change accounting. Both terminal states permanently consume the ID.
+    function expireOtherObligationReservation(bytes32 reservationId) external {
+        Reservation storage reservation = reservations[reservationId];
+        if (reservation.state != ReservationState.Active) revert InvalidReservation();
+        if (block.timestamp < reservation.expiresAt) revert ReservationNotExpired();
+        uint256 amount = reservation.amount;
+        reservation.state = ReservationState.Expired;
+        totalReserved -= amount;
+        ++availabilityRevision;
+        emit ReservationExpired(reservationId, amount, availabilityRevision);
     }
 
     function ratifyAndFund(RatificationRequest calldata request)

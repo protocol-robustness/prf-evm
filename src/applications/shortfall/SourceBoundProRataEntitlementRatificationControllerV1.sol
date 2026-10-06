@@ -83,7 +83,9 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
             revert InvalidPreparedOperation(preparedController.state(operationId));
         }
         if (
-            preparedController.preparedReserve(operationId) != address(reserve)
+            preparedController.preparedChainId(operationId) != block.chainid
+                || preparedController.ratificationController() != address(this)
+                || preparedController.preparedReserve(operationId) != address(reserve)
                 || preparedController.preparedToken(operationId) != address(reserve.token())
                 || preparedController.preparedAllocator(operationId) != address(reserve.allocator())
                 || bytes32(uint256(uint160(residualRecipient)))
