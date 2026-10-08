@@ -33,6 +33,10 @@ contract V2RatificationReserveMock is IOnchainShortfallReserveV2 {
         revision = revision_;
     }
 
+    function cancelAndRefund(bytes32) external pure {
+        revert("NOT_IMPLEMENTED");
+    }
+
     function ratifyAndFund(RatificationRequest calldata request)
         external
         view

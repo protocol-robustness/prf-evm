@@ -10,7 +10,7 @@ import {IOnchainShortfallEntitlementReserveV1} from "../../interfaces/IOnchainSh
 import {IEntitlementRepresentationV1} from "../../interfaces/IEntitlementRepresentationV1.sol";
 
 /// @notice V2 reserve accounting successor. This contract exposes deterministic
-/// economic-state commitments but does not yet ratify, create, or fund operations.
+/// economic-state commitments and atomic Shortfall funding/refund routes.
 contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortfallEntitlementReserveV1 {
     bytes32 public constant ECONOMIC_STATE_DOMAIN = keccak256("prf.economic-reserve-state.v2");
     bytes32 public constant OBSERVATION_DOMAIN = keccak256("prf.authoritative-reserve-observation.v2");
@@ -83,6 +83,8 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
     event ReservationReleased(bytes32 indexed reservationId, uint256 amount, uint64 revision);
     event ReservationExpired(bytes32 indexed reservationId, uint256 amount, uint64 revision);
     event RatificationAuthorityBound(address indexed controller);
+    event FundingCancelledAndRefunded(bytes32 indexed operationId, uint256 amount, uint64 revision);
+    event EntitlementFundingCancelledAndRefunded(bytes32 indexed operationId, uint256 amount, uint64 revision);
     event RatifiedAndFunded(
         bytes32 indexed operationId, bytes32 indexed observationRoot, uint256 amount, uint64 revision
     );
@@ -143,10 +145,13 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
 
     /// @notice Creates an exclusion hold, not a fundable operation. Its deadline cannot be extended.
     function reserveForOtherObligation(bytes32 reservationId, uint256 amount, uint256 expiresAt)
-        external onlyApplicationAuthority
+        external
+        onlyApplicationAuthority
     {
-        if (reservationId == bytes32(0) || amount == 0 || expiresAt <= block.timestamp
-                || reservations[reservationId].state != ReservationState.None) {
+        if (
+            reservationId == bytes32(0) || amount == 0 || expiresAt <= block.timestamp
+                || reservations[reservationId].state != ReservationState.None
+        ) {
             revert InvalidReservation();
         }
         uint256 gross = token.balanceOf(address(this));
@@ -347,6 +352,61 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
         onlyRatificationAuthority
     {
         IShortfallEntitlementAllocatorV1(address(allocator)).activateEntitlement(operationId, representation);
+    }
+
+    /// @notice Atomically refunds a funded, not-yet-activated entitlement operation to this reserve.
+    /// @dev The allocator's recorded funder and the exact token deltas are checked before returning.
+    function cancelAndRefundEntitlement(bytes32 operationId) external onlyRatificationAuthority nonReentrant {
+        IShortfallEntitlementAllocatorV1 entitlementAllocator = IShortfallEntitlementAllocatorV1(address(allocator));
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory funded =
+            entitlementAllocator.entitlementOperation(operationId);
+        if (
+            funded.state != IShortfallAllocatorV2.State.Funded || address(funded.token) != address(token)
+                || funded.amount == 0 || entitlementAllocator.fundingSource(operationId) != address(this)
+        ) revert AllocatorMismatch();
+
+        uint256 allocatorBefore = token.balanceOf(address(allocator));
+        uint256 reserveBefore = token.balanceOf(address(this));
+        if (token.allowance(address(this), address(allocator)) != 0) revert AllowanceMismatch();
+        entitlementAllocator.cancelAndRefundEntitlement(operationId);
+        if (
+            allocatorBefore < token.balanceOf(address(allocator))
+                || allocatorBefore - token.balanceOf(address(allocator)) != funded.amount
+                || token.balanceOf(address(this)) < reserveBefore
+                || token.balanceOf(address(this)) - reserveBefore != funded.amount
+        ) revert TokenDeltaMismatch();
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory refunded =
+            entitlementAllocator.entitlementOperation(operationId);
+        if (refunded.state != IShortfallAllocatorV2.State.Cancelled) revert AllocatorMismatch();
+
+        ++availabilityRevision;
+        emit EntitlementFundingCancelledAndRefunded(operationId, funded.amount, availabilityRevision);
+    }
+
+    /// @notice Returns funded legacy operation capital to this reserve atomically.
+    /// @dev Custody recovery remains downstream of the reservation boundary.
+    function cancelAndRefund(bytes32 operationId) external onlyRatificationAuthority nonReentrant {
+        IShortfallAllocatorV2.Operation memory funded = allocator.operation(operationId);
+        if (
+            funded.state != IShortfallAllocatorV2.State.Funded || address(funded.token) != address(token)
+                || funded.amount == 0 || allocator.fundingSource(operationId) != address(this)
+        ) revert AllocatorMismatch();
+
+        uint256 allocatorBefore = token.balanceOf(address(allocator));
+        uint256 reserveBefore = token.balanceOf(address(this));
+        if (token.allowance(address(this), address(allocator)) != 0) revert AllowanceMismatch();
+        allocator.cancelAndRefund(operationId);
+        if (
+            allocatorBefore < token.balanceOf(address(allocator))
+                || allocatorBefore - token.balanceOf(address(allocator)) != funded.amount
+                || token.balanceOf(address(this)) < reserveBefore
+                || token.balanceOf(address(this)) - reserveBefore != funded.amount
+        ) revert TokenDeltaMismatch();
+        IShortfallAllocatorV2.Operation memory refunded = allocator.operation(operationId);
+        if (refunded.state != IShortfallAllocatorV2.State.Cancelled) revert AllocatorMismatch();
+
+        ++availabilityRevision;
+        emit FundingCancelledAndRefunded(operationId, funded.amount, availabilityRevision);
     }
 
     function economicState(bytes32 preparedOperationRoot) public view returns (EconomicState memory state) {

@@ -29,4 +29,7 @@ interface IOnchainShortfallReserveV2 {
     /// @notice Atomically compares live economic state, records the authoritative
     /// observation, creates/funds the allocator operation, and leaves no reservation.
     function ratifyAndFund(RatificationRequest calldata request) external returns (RatificationResult memory);
+
+    /// @notice Cancels a funded legacy operation and returns its capital to this reserve.
+    function cancelAndRefund(bytes32 operationId) external;
 }

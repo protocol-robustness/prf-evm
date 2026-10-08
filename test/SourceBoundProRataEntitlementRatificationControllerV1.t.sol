@@ -221,6 +221,66 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         );
     }
 
+    function test_CancelAndRefundReturnsExactCapitalAndIsTerminal() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+
+        uint64 revisionBeforeRefund = reserve.availabilityRevision();
+        ratification.cancelAndRefundEntitlement(OPERATION);
+
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory refunded =
+            allocator.entitlementOperation(OPERATION);
+        assertEq(uint8(refunded.state), uint8(IShortfallAllocatorV2.State.Cancelled));
+        assertEq(allocator.fundingSource(OPERATION), address(reserve));
+        assertEq(
+            uint8(ratification.state(OPERATION)),
+            uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.CancelledRefunded)
+        );
+        assertEq(token.balanceOf(address(reserve)), 100, "exact refund to reserve");
+        assertEq(token.balanceOf(address(allocator)), 0, "allocator custody fully returned");
+        assertEq(token.allowance(address(reserve), address(allocator)), 0, "reserve allowance cleared");
+        assertEq(reserve.totalReserved(), 0, "no reservation created by refund");
+        assertEq(reserve.availabilityRevision(), revisionBeforeRefund + 1, "availability revision advances");
+        OnchainShortfallReserveV2.EconomicState memory restored = reserve.economicState(preparedRoot);
+        assertEq(restored.grossBalance, 100, "reserve gross restored");
+        assertEq(restored.reservedBefore, 0, "reserved amount cleared");
+        assertEq(restored.availableAmount, 90, "protected floor leaves original availability");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.InvalidState.selector,
+                SourceBoundProRataEntitlementRatificationControllerV1.State.CancelledRefunded
+            )
+        );
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(representation)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.InvalidState.selector,
+                SourceBoundProRataEntitlementRatificationControllerV1.State.CancelledRefunded
+            )
+        );
+        ratification.cancelAndRefundEntitlement(OPERATION);
+    }
+
+    function test_ActivationWinsAgainstCancelAndRefund() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(representation)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.InvalidState.selector,
+                SourceBoundProRataEntitlementRatificationControllerV1.State.Activated
+            )
+        );
+        ratification.cancelAndRefundEntitlement(OPERATION);
+        assertEq(token.balanceOf(address(reserve)), 10, "activated capital remains funded");
+        assertEq(token.balanceOf(address(allocator)), 90, "activated allocator custody remains");
+        assertEq(allocator.fundingSource(OPERATION), address(reserve));
+    }
+
     function test_ActivationRejectsCountAndTotalMismatches() public {
         assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
         ratification.registerPrepared(OPERATION);
@@ -266,7 +326,10 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         vm.chainId(block.chainid + 1);
         vm.expectRevert(SourceBoundProRataEntitlementRatificationControllerV1.PreparedContextMismatch.selector);
         ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
-        assertEq(uint8(ratification.state(OPERATION)), uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Prepared));
+        assertEq(
+            uint8(ratification.state(OPERATION)),
+            uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Prepared)
+        );
         assertFalse(assurance.consumedAssurance(RECEIPT));
         assertEq(token.balanceOf(address(reserve)), 100);
         assertEq(token.balanceOf(address(allocator)), 0);

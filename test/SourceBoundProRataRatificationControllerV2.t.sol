@@ -3,6 +3,9 @@ pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
 import {ISourceBoundProRataAssuranceV2} from "../src/interfaces/ISourceBoundProRataAssuranceV2.sol";
+import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
+import {OnchainShortfallReserveV2} from "../src/applications/shortfall/OnchainShortfallReserveV2.sol";
+import {V2ReserveToken} from "./OnchainShortfallReserveV2.t.sol";
 import {SourceBoundProRataControllerV2} from "../src/applications/shortfall/SourceBoundProRataControllerV2.sol";
 import {SourceBoundProRataAssuranceV2} from "../src/applications/shortfall/SourceBoundProRataAssuranceV2.sol";
 import {
@@ -40,8 +43,9 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
         prepared.bindRatificationController(address(controller));
         controller.bindExecutionCaller(address(this));
         address initiator = address(0x1111);
+        ShortfallV2Commitments.PreparedOperation memory operation = _operation(initiator);
         vm.prank(initiator);
-        prepared.prepareOperation(_operation(initiator));
+        prepared.prepareOperation(operation);
         controller.registerPrepared(OP);
     }
 
@@ -179,6 +183,90 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
             )
         );
         prepared.abandonPreparedOperation(OP);
+    }
+
+    function test_LegacyFundCancelRefundRestoresReserveAccountingEndToEnd() public {
+        V2ReserveToken liveToken = new V2ReserveToken();
+        ProductionProRataAllocatorV2 liveAllocator = new ProductionProRataAllocatorV2(address(this));
+        OnchainShortfallReserveV2 liveReserve =
+            new OnchainShortfallReserveV2(liveToken, address(this), 10, liveAllocator);
+        SourceBoundProRataControllerV2 livePrepared = new SourceBoundProRataControllerV2();
+        V2RatificationAssuranceMock liveAssurance = new V2RatificationAssuranceMock();
+        SourceBoundProRataRatificationControllerV2 liveController =
+            new SourceBoundProRataRatificationControllerV2(livePrepared, liveAssurance, liveReserve);
+        liveAllocator.bindFundingAuthority(address(liveReserve));
+        liveReserve.bindRatificationAuthority(address(liveController));
+        livePrepared.bindRatificationController(address(liveController));
+        liveController.bindExecutionCaller(address(this));
+
+        liveToken.mint(address(this), 100);
+        liveToken.approve(address(liveReserve), 100);
+        liveReserve.deposit(100);
+
+        bytes32 operationId = keccak256("legacy-cancel-refund-roundtrip");
+        bytes32 allocationRoot = keccak256("legacy-cancel-refund-allocation");
+        bytes32 statementRoot = keccak256("legacy-cancel-refund-statement");
+        bytes32 configurationRoot = keccak256("legacy-cancel-refund-configuration");
+        address residual = address(0x4444);
+        ShortfallV2Commitments.PreparedOperation memory operation = ShortfallV2Commitments.PreparedOperation({
+            operationId: operationId,
+            initiator: bytes32(uint256(uint160(address(this)))),
+            chainId: uint64(block.chainid),
+            reserve: bytes32(uint256(uint160(address(liveReserve)))),
+            token: bytes32(uint256(uint160(address(liveToken)))),
+            allocator: bytes32(uint256(uint160(address(liveAllocator)))),
+            configurationRoot: configurationRoot,
+            configurationEpoch: 1,
+            sourceVerifierId: keccak256("source-verifier"),
+            executionVerifierId: keccak256("execution-verifier"),
+            sourceProgramVKey: keccak256("source-vkey"),
+            sourceProgramElfSha256: keccak256("source-elf"),
+            sourceStatementSchema: keccak256("source-statement"),
+            sourcePublicValuesSchema: keccak256("source-values"),
+            executionStatementSchema: keccak256("execution-statement"),
+            executionPublicValuesSchema: keccak256("execution-values"),
+            policyRoot: keccak256("policy"),
+            residualRecipient: bytes32(uint256(uint160(residual)))
+        });
+        bytes32 root = livePrepared.prepareOperation(operation);
+        bytes32 commitment = liveReserve.economicState(root).commitment;
+        bytes32 receiptId = keccak256("legacy-cancel-refund-receipt");
+        liveAssurance.configure(
+            ISourceBoundProRataAssuranceV2.RatificationPayload(
+                root, commitment, allocationRoot, statementRoot, operationId, receiptId
+            )
+        );
+        liveController.registerPrepared(operationId);
+        liveController.ratifyAndFund(operationId, commitment, configurationRoot, 1, residual);
+        assertEq(liveToken.balanceOf(address(liveReserve)), 10);
+        assertEq(liveToken.balanceOf(address(liveAllocator)), 90);
+        assertEq(liveToken.allowance(address(liveReserve), address(liveAllocator)), 0);
+
+        liveController.cancelAndRefund(operationId);
+        IShortfallAllocatorV2.Operation memory refunded = liveAllocator.operation(operationId);
+        assertEq(uint8(refunded.state), uint8(IShortfallAllocatorV2.State.Cancelled));
+        assertEq(liveAllocator.fundingSource(operationId), address(liveReserve));
+        assertEq(
+            uint8(liveController.state(operationId)),
+            uint8(SourceBoundProRataRatificationControllerV2.State.CancelledRefunded)
+        );
+        assertEq(uint8(livePrepared.state(operationId)), uint8(SourceBoundProRataControllerV2.State.Ratified));
+        assertEq(liveToken.balanceOf(address(liveReserve)), 100);
+        assertEq(liveToken.balanceOf(address(liveAllocator)), 0);
+        assertEq(liveToken.allowance(address(liveReserve), address(liveAllocator)), 0);
+        assertEq(liveReserve.totalReserved(), 0);
+        assertEq(liveReserve.availabilityRevision(), 2);
+        assertEq(liveReserve.economicState(root).availableAmount, 90);
+        assertEq(liveReserve.nextSnapshotId(), 2);
+        assertFalse(liveReserve.ratifying());
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataRatificationControllerV2.InvalidState.selector,
+                SourceBoundProRataRatificationControllerV2.State.CancelledRefunded
+            )
+        );
+        liveController.cancelAndRefund(operationId);
     }
 
     function test_LegacyDeclaredWrongChainAndAllocatorRejectBeforeConsumption() public {

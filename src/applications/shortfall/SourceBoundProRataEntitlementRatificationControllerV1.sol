@@ -15,7 +15,8 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
         Prepared,
         Ratifying,
         Funded,
-        Activated
+        Activated,
+        CancelledRefunded
     }
 
     SourceBoundProRataControllerV2 public immutable preparedController;
@@ -39,6 +40,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
     event ExecutionCallerBound(address indexed caller);
     event EntitlementRatificationFunded(bytes32 indexed operationId, bytes32 indexed receiptId, uint256 amount);
     event EntitlementOperationActivated(bytes32 indexed operationId, address indexed representation);
+    event EntitlementOperationCancelledAndRefunded(bytes32 indexed operationId);
 
     constructor(
         SourceBoundProRataControllerV2 preparedController_,
@@ -124,6 +126,15 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
         result[operationId] = funded;
         state[operationId] = State.Funded;
         emit EntitlementRatificationFunded(operationId, payload.receiptId, funded.fundedAmount);
+    }
+
+    /// @notice Returns funded capital before activation; activated liabilities cannot be cancelled.
+    function cancelAndRefundEntitlement(bytes32 operationId) external {
+        if (!executionCallerBound || msg.sender != executionCaller) revert OnlyExecutionCaller(msg.sender);
+        if (state[operationId] != State.Funded) revert InvalidState(state[operationId]);
+        IOnchainShortfallEntitlementReserveV1(address(reserve)).cancelAndRefundEntitlement(operationId);
+        state[operationId] = State.CancelledRefunded;
+        emit EntitlementOperationCancelledAndRefunded(operationId);
     }
 
     function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation) external {

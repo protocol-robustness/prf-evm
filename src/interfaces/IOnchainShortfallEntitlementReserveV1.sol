@@ -30,4 +30,6 @@ interface IOnchainShortfallEntitlementReserveV1 {
         returns (EntitlementRatificationResult memory);
 
     function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation) external;
+
+    function cancelAndRefundEntitlement(bytes32 operationId) external;
 }

@@ -95,6 +95,14 @@ contract V2RatificationAllocatorMock is IShortfallAllocatorV2 {
         );
     }
 
+    function cancelAndRefund(bytes32) external pure {
+        revert("NOT_IMPLEMENTED");
+    }
+
+    function fundingSource(bytes32) external pure returns (address) {
+        return address(0);
+    }
+
     function fund(bytes32 operationId) external {
         if (revertFund) revert("ALLOCATOR_FUND_REVERT");
         Operation storage operation_ = _operations[operationId];

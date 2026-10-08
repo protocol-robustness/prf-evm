@@ -9,13 +9,20 @@ import {IOnchainShortfallReserveV2} from "../src/interfaces/IOnchainShortfallRes
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 
 contract V2ReserveToken is ERC20 {
-    enum TransferFromMode { Normal, Revert, ReturnFalse, ShortTransfer }
+    enum TransferFromMode {
+        Normal,
+        Revert,
+        ReturnFalse,
+        ShortTransfer
+    }
 
     TransferFromMode public transferFromMode;
 
     constructor() ERC20("V2 Reserve", "V2R") {}
 
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 
     function setTransferFromMode(TransferFromMode mode) external {
         transferFromMode = mode;
@@ -37,7 +44,7 @@ contract OnchainShortfallReserveV2Test is Test {
     V2RatificationAllocatorMock allocator;
     address authority = address(0xA11CE);
     bytes32 constant RESERVATION = keccak256("ordinary");
-        bytes32 constant OPERATION = keccak256("operation");
+    bytes32 constant OPERATION = keccak256("operation");
     bytes32 constant PREPARED = keccak256("prepared");
 
     function setUp() public {
@@ -55,7 +62,7 @@ contract OnchainShortfallReserveV2Test is Test {
         assertEq(beforeState.revision, 0);
 
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days);
         OnchainShortfallReserveV2.EconomicState memory afterState = reserve.economicState(PREPARED);
         assertEq(afterState.reservedBefore, 20);
         assertEq(afterState.revision, 1);
@@ -66,7 +73,7 @@ contract OnchainShortfallReserveV2Test is Test {
         token.approve(address(reserve), 100);
         reserve.deposit(100);
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days);
         vm.prank(authority);
         reserve.releaseOtherObligationReservation(RESERVATION);
         assertEq(reserve.availabilityRevision(), 2);
@@ -99,6 +106,9 @@ contract OnchainShortfallReserveV2Test is Test {
         vm.prank(authority);
         vm.expectRevert(OnchainShortfallReserveV2.InvalidReservation.selector);
         reserve.releaseOtherObligationReservation(RESERVATION);
+        vm.prank(authority);
+        vm.expectRevert(OnchainShortfallReserveV2.InvalidReservation.selector);
+        reserve.reserveForOtherObligation(RESERVATION, 1, deadline + 1 days);
     }
 
     function test_RatifyAndFundComparesCommitmentAndClearsEphemeralReservation() public {
@@ -109,8 +119,14 @@ contract OnchainShortfallReserveV2Test is Test {
         vm.prank(authority);
         OnchainShortfallReserveV2.RatificationResult memory result = reserve.ratifyAndFund(
             IOnchainShortfallReserveV2.RatificationRequest(
-                OPERATION, PREPARED, state.commitment, bytes32(uint256(1)), bytes32(uint256(2)),
-                bytes32(uint256(3)), 1, address(0x2222)
+                OPERATION,
+                PREPARED,
+                state.commitment,
+                bytes32(uint256(1)),
+                bytes32(uint256(2)),
+                bytes32(uint256(3)),
+                1,
+                address(0x2222)
             )
         );
         assertEq(result.fundedAmount, 90);
@@ -126,13 +142,19 @@ contract OnchainShortfallReserveV2Test is Test {
         reserve.deposit(100);
         OnchainShortfallReserveV2.EconomicState memory state = reserve.economicState(PREPARED);
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 1, block.timestamp + 1 days)
+        reserve.reserveForOtherObligation(RESERVATION, 1, block.timestamp + 1 days);
         vm.prank(authority);
         vm.expectRevert();
         reserve.ratifyAndFund(
             IOnchainShortfallReserveV2.RatificationRequest(
-                OPERATION, PREPARED, state.commitment, bytes32(uint256(1)), bytes32(uint256(2)),
-                bytes32(uint256(3)), 1, address(0x2222)
+                OPERATION,
+                PREPARED,
+                state.commitment,
+                bytes32(uint256(1)),
+                bytes32(uint256(2)),
+                bytes32(uint256(3)),
+                1,
+                address(0x2222)
             )
         );
         assertEq(reserve.totalReserved(), 1);
@@ -200,7 +222,7 @@ contract OnchainShortfallReserveV2Test is Test {
     function test_EachSuccessfulAvailabilityMutationAdvancesRevisionExactlyOnce() public {
         _deposit100();
         vm.prank(authority);
-        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days)
+        reserve.reserveForOtherObligation(RESERVATION, 20, block.timestamp + 1 days);
         assertEq(reserve.availabilityRevision(), 1, "ordinary reservation");
 
         vm.prank(authority);
@@ -273,7 +295,9 @@ contract OnchainShortfallReserveV2Test is Test {
         assertEq(token.balanceOf(address(reserve)), reserveBalance, "reserve balance");
         assertEq(token.balanceOf(address(allocator)), allocatorBalance, "allocator balance");
         assertEq(token.allowance(address(reserve), address(allocator)), 0, "allowance");
-        assertEq(uint8(allocator.operation(OPERATION).state), uint8(IShortfallAllocatorV2.State.None), "allocator operation");
+        assertEq(
+            uint8(allocator.operation(OPERATION).state), uint8(IShortfallAllocatorV2.State.None), "allocator operation"
+        );
     }
 
     function _deposit100() internal {
@@ -282,9 +306,20 @@ contract OnchainShortfallReserveV2Test is Test {
         reserve.deposit(100);
     }
 
-    function _request(bytes32 commitment) internal pure returns (IOnchainShortfallReserveV2.RatificationRequest memory) {
+    function _request(bytes32 commitment)
+        internal
+        pure
+        returns (IOnchainShortfallReserveV2.RatificationRequest memory)
+    {
         return IOnchainShortfallReserveV2.RatificationRequest(
-            OPERATION, PREPARED, commitment, bytes32(uint256(1)), bytes32(uint256(2)), bytes32(uint256(3)), 1, address(0x2222)
+            OPERATION,
+            PREPARED,
+            commitment,
+            bytes32(uint256(1)),
+            bytes32(uint256(2)),
+            bytes32(uint256(3)),
+            1,
+            address(0x2222)
         );
     }
 }

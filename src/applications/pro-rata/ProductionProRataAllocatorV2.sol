@@ -7,14 +7,15 @@ import {IShortfallEntitlementAllocatorV1} from "../../interfaces/IShortfallEntit
 import {IEntitlementRepresentationV1} from "../../interfaces/IEntitlementRepresentationV1.sol";
 
 /// @notice V2 custody successor used by atomic Shortfall ratification.
-/// @dev This deliberately exposes only create/fund. Allocation activation and
-/// claims remain separate from the V2 reserve ratification boundary.
+/// @dev Create/fund is atomic at the reserve boundary. Funded capital can be
+/// returned before downstream reliance; allocation claims remain separate.
 contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitlementAllocatorV1 {
     address public immutable operationAuthority;
     address public fundingAuthority;
     bool public fundingAuthorityBound;
     mapping(bytes32 => Operation) private _operations;
     mapping(bytes32 => IShortfallEntitlementAllocatorV1.EntitlementOperation) private _entitlementOperations;
+    mapping(bytes32 => address) public override(IShortfallAllocatorV2, IShortfallEntitlementAllocatorV1) fundingSource;
     bool private _entered;
 
     error OnlyOperationAuthority(address caller);
@@ -25,6 +26,7 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
     error FundingAuthorityAlreadyBound();
     error InvalidFundingAuthority();
     error EntitlementRepresentationMismatch();
+    error InvalidFundingSource();
 
     modifier onlyAuthority() {
         if (msg.sender != fundingAuthority) revert OnlyOperationAuthority(msg.sender);
@@ -87,6 +89,27 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
             revert TokenDeltaMismatch();
         }
         current.state = State.Funded;
+        fundingSource[operationId] = msg.sender;
+    }
+
+    /// @notice Returns funded legacy capital to the reserve that supplied it.
+    /// @dev Funding is cancellable only before any downstream reliance transition.
+    function cancelAndRefund(bytes32 operationId) external onlyAuthority nonReentrant {
+        Operation storage current = _operations[operationId];
+        if (current.state != State.Funded) revert InvalidState(current.state);
+        address source = fundingSource[operationId];
+        if (source == address(0)) revert InvalidFundingSource();
+
+        uint256 allocatorBefore = current.token.balanceOf(address(this));
+        uint256 sourceBefore = current.token.balanceOf(source);
+        current.state = State.Cancelled;
+        if (!current.token.transfer(source, current.amount)) revert TokenDeltaMismatch();
+        if (
+            allocatorBefore < current.token.balanceOf(address(this))
+                || allocatorBefore - current.token.balanceOf(address(this)) != current.amount
+                || current.token.balanceOf(source) < sourceBefore
+                || current.token.balanceOf(source) - sourceBefore != current.amount
+        ) revert TokenDeltaMismatch();
     }
 
     function operation(bytes32 operationId) external view returns (Operation memory) {
@@ -144,6 +167,26 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
                 || current.token.balanceOf(address(this)) - allocatorBefore != current.amount
         ) revert TokenDeltaMismatch();
         current.state = State.Funded;
+        fundingSource[operationId] = msg.sender;
+    }
+
+    /// @notice Returns a funded pre-activation operation to the exact source that funded it.
+    function cancelAndRefundEntitlement(bytes32 operationId) external onlyAuthority nonReentrant {
+        IShortfallEntitlementAllocatorV1.EntitlementOperation storage current = _entitlementOperations[operationId];
+        if (current.state != State.Funded) revert InvalidState(current.state);
+        address source = fundingSource[operationId];
+        if (source == address(0)) revert InvalidFundingSource();
+
+        uint256 allocatorBefore = current.token.balanceOf(address(this));
+        uint256 sourceBefore = current.token.balanceOf(source);
+        current.state = State.Cancelled;
+        if (!current.token.transfer(source, current.amount)) revert TokenDeltaMismatch();
+        if (
+            allocatorBefore < current.token.balanceOf(address(this))
+                || allocatorBefore - current.token.balanceOf(address(this)) != current.amount
+                || current.token.balanceOf(source) < sourceBefore
+                || current.token.balanceOf(source) - sourceBefore != current.amount
+        ) revert TokenDeltaMismatch();
     }
 
     function entitlementOperation(bytes32 operationId)

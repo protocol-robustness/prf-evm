@@ -4,7 +4,15 @@ pragma solidity ^0.8.33;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IShortfallAllocatorV2 {
-    enum State { None, Created, Funded, Activated, Claims, Closed, Cancelled }
+    enum State {
+        None,
+        Created,
+        Funded,
+        Activated,
+        Claims,
+        Closed,
+        Cancelled
+    }
 
     struct Operation {
         State state;
@@ -25,5 +33,7 @@ interface IShortfallAllocatorV2 {
     ) external;
 
     function fund(bytes32 operationId) external;
+    function cancelAndRefund(bytes32 operationId) external;
+    function fundingSource(bytes32 operationId) external view returns (address);
     function operation(bytes32 operationId) external view returns (Operation memory);
 }

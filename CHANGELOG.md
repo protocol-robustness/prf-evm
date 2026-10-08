@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Legacy V2 and successor entitlement funded operations can be cancelled before downstream reliance and refunded to their recorded reserve with exact token-delta checks; focused tests cover exact accounting and activation/refund races.
+
 - Both funding controllers reject prepared chain, reserve, token, allocator, and bound controller-instance mismatches before assurance consumption or funding. Legacy roots and proof public values remain unchanged.
 - V2 ordinary reservation creation requires an immutable future deadline. Permissionless expiry at `timestamp >= expiresAt` releases reserved availability and increments revision without moving tokens. Reservation state getter and creation event include the deadline; existing enum values remain stable.
 

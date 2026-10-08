@@ -13,7 +13,8 @@ contract SourceBoundProRataRatificationControllerV2 {
         None,
         Prepared,
         Ratifying,
-        Funded
+        Funded,
+        CancelledRefunded
     }
 
     SourceBoundProRataControllerV2 public immutable preparedController;
@@ -41,6 +42,7 @@ contract SourceBoundProRataRatificationControllerV2 {
     event ExecutionCallerBound(address indexed caller);
     event RatificationStarted(bytes32 indexed operationId, bytes32 indexed commitment);
     event RatificationFunded(bytes32 indexed operationId, uint256 amount, uint64 revision);
+    event OperationCancelledAndRefunded(bytes32 indexed operationId);
 
     constructor(
         SourceBoundProRataControllerV2 preparedController_,
@@ -74,6 +76,17 @@ contract SourceBoundProRataRatificationControllerV2 {
         }
         if (state[operationId] != State.None) revert InvalidState(state[operationId]);
         state[operationId] = State.Prepared;
+    }
+
+    /// @notice Returns funded capital before downstream activation or reliance.
+    function cancelAndRefund(bytes32 operationId) external {
+        if (!executionCallerBound || msg.sender != executionCaller) {
+            revert OnlyExecutionCaller(msg.sender);
+        }
+        if (state[operationId] != State.Funded) revert InvalidState(state[operationId]);
+        reserve.cancelAndRefund(operationId);
+        state[operationId] = State.CancelledRefunded;
+        emit OperationCancelledAndRefunded(operationId);
     }
 
     function ratifyAndFund(
