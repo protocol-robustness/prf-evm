@@ -6,6 +6,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 import {IShortfallEntitlementAllocatorV1} from "../src/interfaces/IShortfallEntitlementAllocatorV1.sol";
+import {IEntitlementRepresentationV1} from "../src/interfaces/IEntitlementRepresentationV1.sol";
+import {
+    PublicPackedEntitlementRepresentationV1
+} from "../src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol";
 import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
 import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
 import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
@@ -26,7 +30,50 @@ import {
 contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
     uint256 private constant EXPECTED_RESERVE_BALANCE = 10;
 
-    function test_RealSuccessorProofAdmitsRatifiesAndFunds() public {
+    function test_DeploymentWitnessReconstructsProvedLogicalTable() public {
+        string memory witness = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_INPUT"));
+        string memory fixture = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_FIXTURE"));
+        assertEq(abi.decode(vm.parseJson(fixture, ".gate_e.vector_id"), (string)), "A-minimum-realistic");
+        assertEq(
+            sha256(bytes(witness)),
+            abi.decode(vm.parseJson(fixture, ".source.witness_sha256"), (bytes32)),
+            "deployment witness provenance"
+        );
+        bytes memory publicValues = abi.decode(vm.parseJson(fixture, ".public_values"), (bytes));
+        (
+            bytes32 schema,
+            bytes32 preparedRoot,
+            bytes32 reserveCommitment,
+            bytes32 allocationBindingRoot,
+            bytes32 descriptorRoot,
+            bytes32 tableRoot,
+            uint256 count,
+            uint256 total,
+            bytes32 claimRoot
+        ) = abi.decode(publicValues, (bytes32, bytes32, bytes32, bytes32, bytes32, bytes32, uint256, uint256, bytes32));
+        assertEq(schema, keccak256("prf/source-bound-entitlement-public-values.v1"));
+        assertEq(count, 3);
+        assertEq(total, 70);
+        bytes32 operationId = abi.decode(vm.parseJson(fixture, ".gate_e.operation_id"), (bytes32));
+        bytes32[] memory commitments = _vectorACommitments(witness, allocationBindingRoot, operationId);
+        PublicPackedEntitlementRepresentationV1 representation =
+            new PublicPackedEntitlementRepresentationV1(commitments, total);
+        assertEq(representation.logicalRoot(), tableRoot, "reconstructed logical table root");
+        // These public roots are parsed to ensure the expected nine-word fixture is well-formed;
+        // only the table root is an input to this representation reconstruction.
+        assertTrue(preparedRoot != bytes32(0) && reserveCommitment != bytes32(0));
+        assertTrue(descriptorRoot != bytes32(0) && claimRoot != bytes32(0));
+    }
+
+    function test_RealSuccessorProofAdmitsRatifiesFundsAndActivates() public {
+        _runRealProofPath(true);
+    }
+
+    function test_RealSuccessorProofAdmitsRatifiesFundsAndRefunds() public {
+        _runRealProofPath(false);
+    }
+
+    function _runRealProofPath(bool activate) private {
         string memory manifest = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_MANIFEST"));
         assertEq(
             abi.decode(vm.parseJson(manifest, ".schema"), (string)),
@@ -105,7 +152,8 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
         bytes memory proof = abi.decode(vm.parseJson(fixture, ".proof"), (bytes));
         bytes memory publicValues = abi.decode(vm.parseJson(fixture, ".public_values"), (bytes));
         assertEq(publicValues.length, 288, "nine words");
-        bytes32 witnessHash = sha256(bytes(vm.readFile(vm.envString("GATE_E_ENTITLEMENT_INPUT"))));
+        string memory witness = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_INPUT"));
+        bytes32 witnessHash = sha256(bytes(witness));
         assertEq(
             abi.decode(vm.parseJson(fixture, ".source.witness_sha256"), (bytes32)),
             witnessHash,
@@ -163,6 +211,104 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
         assertEq(reserve.totalReserved(), 0, "no stranded reservation");
         assertTrue(assurance.consumedAssurance(receiptId), "assurance consumed once");
         assertEq(uint8(prepared.state(operationId)), uint8(SourceBoundProRataControllerV2.State.Ratified));
+
+        if (activate) {
+            bytes32[] memory commitments = _vectorACommitments(witness, values.allocationBindingRoot, operationId);
+            PublicPackedEntitlementRepresentationV1 representation =
+                new PublicPackedEntitlementRepresentationV1(commitments, values.entitlementTotal);
+            assertEq(representation.logicalRoot(), values.evmEntitlementTableRoot, "fixture-derived logical table");
+            ratification.activateEntitlement(operationId, IEntitlementRepresentationV1(address(representation)));
+            IShortfallEntitlementAllocatorV1.EntitlementOperation memory activated =
+                IShortfallEntitlementAllocatorV1(address(allocator)).entitlementOperation(operationId);
+            assertEq(uint8(activated.state), uint8(IShortfallAllocatorV2.State.Activated), "allocator activated");
+            assertEq(activated.representation, address(representation), "representation bound");
+            assertEq(activated.allocationClaimRoot, values.allocationClaimRoot, "sole admitted claim root");
+            assertEq(
+                uint8(ratification.state(operationId)),
+                uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Activated)
+            );
+            assertEq(
+                IERC20(tokenAddress).balanceOf(address(allocator)),
+                values.entitlementTotal,
+                "activated liability custody"
+            );
+        } else {
+            uint256 reserveBeforeRefund = IERC20(tokenAddress).balanceOf(address(reserve));
+            uint256 allocatorBeforeRefund = IERC20(tokenAddress).balanceOf(address(allocator));
+            ratification.cancelAndRefundEntitlement(operationId);
+            IShortfallEntitlementAllocatorV1.EntitlementOperation memory refunded =
+                IShortfallEntitlementAllocatorV1(address(allocator)).entitlementOperation(operationId);
+            assertEq(uint8(refunded.state), uint8(IShortfallAllocatorV2.State.Cancelled), "allocator refund terminal");
+            assertEq(
+                IShortfallEntitlementAllocatorV1(address(allocator)).fundingSource(operationId),
+                address(reserve),
+                "recorded funding source"
+            );
+            assertEq(
+                IERC20(tokenAddress).balanceOf(address(reserve)) - reserveBeforeRefund,
+                values.entitlementTotal,
+                "exact reserve refund"
+            );
+            assertEq(
+                allocatorBeforeRefund - IERC20(tokenAddress).balanceOf(address(allocator)),
+                values.entitlementTotal,
+                "exact allocator debit"
+            );
+            assertEq(reserve.totalReserved(), 0, "refund does not create reservation");
+            assertEq(
+                uint8(ratification.state(operationId)),
+                uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.CancelledRefunded)
+            );
+        }
+    }
+
+    function _vectorACommitments(string memory witness, bytes32 allocationBindingRoot, bytes32 operationId)
+        private
+        pure
+        returns (bytes32[] memory commitments)
+    {
+        // A-minimum-realistic is pinned by the fixture's source vector and witness hash above.
+        // Its deterministic 70/100 Shortfall allocation is 35, 21, 14 in claim order.
+        string[3] memory claims = ["claim-a", "claim-b", "claim-c"];
+        uint256[3] memory amounts = [uint256(35), uint256(21), uint256(14)];
+        uint256[3] memory beneficiaryRows = [uint256(1), uint256(2), uint256(0)];
+        uint256[3] memory openingRows = [uint256(2), uint256(0), uint256(1)];
+        commitments = new bytes32[](3);
+        for (uint256 i; i < claims.length; ++i) {
+            string memory claim = claims[i];
+            string memory beneficiaryClaim = vm.parseJsonString(
+                witness, string.concat(".beneficiary-mapping[", vm.toString(beneficiaryRows[i]), "].claim-id")
+            );
+            string memory openingClaim =
+                vm.parseJsonString(witness, string.concat(".openings[", vm.toString(openingRows[i]), "].claim-id"));
+            assertEq(beneficiaryClaim, claim, "beneficiary mapped by canonical claim");
+            assertEq(openingClaim, claim, "salt mapped by canonical claim");
+            address beneficiary = abi.decode(
+                vm.parseJson(
+                    witness, string.concat(".beneficiary-mapping[", vm.toString(beneficiaryRows[i]), "].beneficiary")
+                ),
+                (address)
+            );
+            bytes32 salt = abi.decode(
+                vm.parseJson(witness, string.concat(".openings[", vm.toString(openingRows[i]), "].salt")), (bytes32)
+            );
+            bytes memory canonicalClaim =
+                abi.encodePacked(bytes1(0x20), bytes1(uint8(bytes(claim).length)), bytes(claim));
+            bytes32 claimHash = keccak256(canonicalClaim);
+            commitments[i] = keccak256(
+                abi.encode(
+                    keccak256("prf.source-bound-entitlement.commitment.v1"),
+                    allocationBindingRoot,
+                    operationId,
+                    i,
+                    claimHash,
+                    beneficiary,
+                    amounts[i],
+                    keccak256("smart-account-v1"),
+                    salt
+                )
+            );
+        }
     }
 
     function admissionStatementRoot(bytes memory publicValues) private pure returns (bytes32 root) {
