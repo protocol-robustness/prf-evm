@@ -2,6 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.sol";
@@ -103,6 +104,15 @@ contract SourceBoundProRataAssuranceV2Test is Test {
     bytes32 publicValues;
     bytes publicValuesBytes;
 
+    struct IntegratedFixture {
+        SourceBoundProRataControllerV2 prepared;
+        SourceBoundProRataAssuranceV2 assurance;
+        SourceBoundProRataRatificationControllerV2 ratification;
+        bytes32 operationId;
+        bytes32 preparedRoot;
+        bytes32 receiptId;
+    }
+
     function setUp() public {
         admission = new AssuranceV2AdmissionMock();
         verifier = new AssuranceV2VerifierMock();
@@ -170,52 +180,35 @@ contract SourceBoundProRataAssuranceV2Test is Test {
     }
 
     function test_RealAssuranceRatifiesThroughControllerAndReserve() public {
-        SourceBoundProRataAssuranceV2 integratedAssurance =
-            new SourceBoundProRataAssuranceV2(admission, adapter, preparedController, address(this));
         V2RatificationReserveMock reserve = new V2RatificationReserveMock();
-        SourceBoundProRataRatificationControllerV2 ratificationController =
-            new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
-        preparedController.bindRatificationController(address(ratificationController));
-        ratificationController.bindExecutionCaller(address(this));
-        integratedAssurance.bindRatificationController(address(ratificationController));
-        ratificationController.registerPrepared(OPERATION);
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(0x2222), address(0x3333));
         reserve.configure(commitment, false, 70, 18);
-        integratedAssurance.prepareSourceAssurance(OPERATION, RECEIPT, publicValuesBytes);
+        _prepareIntegratedAssurance(f, commitment);
 
-        ratificationController.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
+        f.ratification.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
 
-        assertEq(
-            uint8(ratificationController.state(OPERATION)),
-            uint8(SourceBoundProRataRatificationControllerV2.State.Funded)
-        );
-        assertTrue(integratedAssurance.consumedAssurance(RECEIPT));
-        (,, uint256 funded,) = ratificationController.result(OPERATION);
+        assertEq(uint8(f.ratification.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Funded));
+        assertTrue(f.assurance.consumedAssurance(f.receiptId));
+        (,, uint256 funded,) = f.ratification.result(OPERATION);
         assertEq(funded, 70);
     }
 
     function test_RealAssuranceRollbackKeepsPreparedOnReserveFailure() public {
-        SourceBoundProRataAssuranceV2 integratedAssurance =
-            new SourceBoundProRataAssuranceV2(admission, adapter, preparedController, address(this));
         V2RatificationReserveMock reserve = new V2RatificationReserveMock();
-        SourceBoundProRataRatificationControllerV2 ratificationController =
-            new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
-        preparedController.bindRatificationController(address(ratificationController));
-        ratificationController.bindExecutionCaller(address(this));
-        integratedAssurance.bindRatificationController(address(ratificationController));
-        ratificationController.registerPrepared(OPERATION);
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(0x2222), address(0x3333));
         reserve.configure(commitment, true, 70, 18);
-        integratedAssurance.prepareSourceAssurance(OPERATION, RECEIPT, publicValuesBytes);
+        _prepareIntegratedAssurance(f, commitment);
 
         vm.expectRevert(bytes("RESERVE_RATIFICATION_REVERT"));
-        ratificationController.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
+        f.ratification.ratifyAndFund(OPERATION, commitment, bytes32(uint256(4)), 1, address(0x2222));
 
         assertEq(
-            uint8(ratificationController.state(OPERATION)),
-            uint8(SourceBoundProRataRatificationControllerV2.State.Prepared)
+            uint8(f.ratification.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Prepared)
         );
-        assertFalse(integratedAssurance.consumedAssurance(RECEIPT));
-        SourceBoundProRataAssuranceV2.PreparedSourceAssurance memory prepared =
-            integratedAssurance.preparedAssurance(OPERATION);
+        assertFalse(f.assurance.consumedAssurance(f.receiptId));
+        SourceBoundProRataAssuranceV2.PreparedSourceAssurance memory prepared = f.assurance.preparedAssurance(OPERATION);
         assertEq(uint8(prepared.state), uint8(SourceBoundProRataAssuranceV2.AssuranceState.Prepared));
     }
 
@@ -225,25 +218,56 @@ contract SourceBoundProRataAssuranceV2Test is Test {
             new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
         OnchainShortfallReserveV2 reserve = new OnchainShortfallReserveV2(token, address(this), 10, allocator);
         allocator.bindFundingAuthority(address(reserve));
-
-        SourceBoundProRataAssuranceV2 integratedAssurance =
-            new SourceBoundProRataAssuranceV2(admission, adapter, preparedController, address(this));
-        SourceBoundProRataRatificationControllerV2 ratificationController =
-            new SourceBoundProRataRatificationControllerV2(preparedController, integratedAssurance, reserve);
-        preparedController.bindRatificationController(address(ratificationController));
-        ratificationController.bindExecutionCaller(address(this));
-        integratedAssurance.bindRatificationController(address(ratificationController));
-        reserve.bindRatificationAuthority(address(ratificationController));
-        ratificationController.registerPrepared(OPERATION);
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(token), address(allocator));
+        reserve.bindRatificationAuthority(address(f.ratification));
 
         token.mint(address(this), 100);
         token.approve(address(reserve), 100);
         reserve.deposit(100);
-        OnchainShortfallReserveV2.EconomicState memory state = reserve.economicState(preparedRoot);
-        publicValuesBytes =
-            abi.encode(adapter.PUBLIC_VALUES_DOMAIN(), preparedRoot, state.commitment, ALLOCATION, REALIZED, OPERATION);
+        OnchainShortfallReserveV2.EconomicState memory state = reserve.economicState(f.preparedRoot);
+        _prepareIntegratedAssurance(f, state.commitment);
+
+        f.ratification.ratifyAndFund(OPERATION, state.commitment, bytes32(uint256(4)), 1, address(0x2222));
+
+        IShortfallAllocatorV2.Operation memory operation = allocator.operation(OPERATION);
+        assertEq(uint8(operation.state), uint8(IShortfallAllocatorV2.State.Funded));
+        assertEq(operation.amount, 90);
+        assertEq(token.balanceOf(address(reserve)), 10);
+        assertEq(token.balanceOf(address(allocator)), 90);
+        assertEq(token.allowance(address(reserve), address(allocator)), 0);
+    }
+
+    function _integratedFixture(bytes32 operationId, address reserve, address token, address allocator)
+        internal
+        returns (IntegratedFixture memory f)
+    {
+        f.operationId = operationId;
+        f.receiptId = keccak256(abi.encode("assurance-v2-integrated-receipt", operationId));
+        f.prepared = new SourceBoundProRataControllerV2();
+        f.assurance = new SourceBoundProRataAssuranceV2(admission, adapter, f.prepared, address(this));
+        f.ratification = new SourceBoundProRataRatificationControllerV2(
+            f.prepared, f.assurance, IOnchainShortfallReserveV2(reserve)
+        );
+        f.prepared.bindRatificationController(address(f.ratification));
+        f.ratification.bindExecutionCaller(address(this));
+        f.assurance.bindRatificationController(address(f.ratification));
+
+        ShortfallV2Commitments.PreparedOperation memory operation = _operation(address(this));
+        operation.operationId = operationId;
+        operation.reserve = bytes32(uint256(uint160(reserve)));
+        operation.token = bytes32(uint256(uint160(token)));
+        operation.allocator = bytes32(uint256(uint160(allocator)));
+        f.preparedRoot = ShortfallV2Commitments.preparedOperationRoot(operation);
+        f.prepared.prepareOperation(operation);
+        f.ratification.registerPrepared(operationId);
+    }
+
+    function _prepareIntegratedAssurance(IntegratedFixture memory f, bytes32 reserveCommitment) internal {
+        bytes memory values = abi.encode(
+            adapter.PUBLIC_VALUES_DOMAIN(), f.preparedRoot, reserveCommitment, ALLOCATION, REALIZED, f.operationId
+        );
         admission.setReceipt(
-            RECEIPT,
+            f.receiptId,
             IPrfStatementAdmission.AdmissionReceipt({
                 exists: true,
                 protocolGenesisRoot: bytes32(0),
@@ -258,19 +282,10 @@ contract SourceBoundProRataAssuranceV2Test is Test {
                 statementSchemaVersionHash: adapter.statementSchemaVersion(),
                 publicValuesSchema: adapter.publicValuesSchema(),
                 statementRoot: ALLOCATION,
-                publicValuesDigest: sha256(publicValuesBytes)
+                publicValuesDigest: sha256(values)
             })
         );
-        integratedAssurance.prepareSourceAssurance(OPERATION, RECEIPT, publicValuesBytes);
-
-        ratificationController.ratifyAndFund(OPERATION, state.commitment, bytes32(uint256(4)), 1, address(0x2222));
-
-        IShortfallAllocatorV2.Operation memory operation = allocator.operation(OPERATION);
-        assertEq(uint8(operation.state), uint8(IShortfallAllocatorV2.State.Funded));
-        assertEq(operation.amount, 90);
-        assertEq(token.balanceOf(address(reserve)), 10);
-        assertEq(token.balanceOf(address(allocator)), 90);
-        assertEq(token.allowance(address(reserve), address(allocator)), 0);
+        f.assurance.prepareSourceAssurance(f.operationId, f.receiptId, values);
     }
 
     function test_BindingIsPermanentAndPreparationRejectsInvalidDigest() public {
