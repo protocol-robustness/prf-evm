@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added one-step successor entitlement withdrawal with live governed Requested/Required enforcement, caller minimum assurance, table-opening verification, optional non-blocking Requested claim proofs, single-use consumption, exact settlement, and liability-based closure. The existing V1 claim path remains unchanged.
+
 - Qualified the deployment-bound successor Gate E Groth16 path on Anvil through logical-table reconstruction, proof admission, assurance, ratification, exact funding, and both activation and cancel-and-refund outcomes using a witness-matched proof fixture.
 
 - Legacy V2 and successor entitlement funded operations can be cancelled before downstream reliance and refunded to their recorded reserve with exact token-delta checks; focused tests cover exact accounting and activation/refund races.

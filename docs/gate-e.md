@@ -64,3 +64,32 @@ pnpm gate-e-entitlement:fixture \
 ```
 
 The adapter refuses inconsistent program/VKey/ELF, witness hash, schema, roots, count, total, or proof type. The resulting fixture retains the B3 proof and public values and adds deployment/vector provenance. Run `GateEEntitlementDeploymentDerivedRealProofTest` against the same Anvil chain with `GATE_E_ENTITLEMENT_MANIFEST`, `GATE_E_ENTITLEMENT_INPUT`, and `GATE_E_ENTITLEMENT_FIXTURE` set. This deployment-bound successor path is now verified with the real Groth16 proof: the converter accepted the witness-matched B3 fixture, and all three Foundry tests passed, including activation and cancel-and-refund. The temporary Foundry fixture copy is not committed; the proof, manifest, witness, and broadcast records are retained under the operator's `/opt/prf-b3-target/gate-e-20261009` run directory.
+
+
+## Successor entitlement withdrawal
+
+The source-bound-entitlement successor uses one atomic withdrawal call on
+`ProductionProRataAllocatorV2`; there is no pending request or fulfillment
+transaction. The call carries the operation, entitlement opening (canonical
+index, UTF-8 claim identity, stable beneficiary address, amount, and 32-byte
+salt), ordered table siblings, an explicit allocation-proof-present flag and
+claim siblings, and a caller minimum mode. It has no payout override. The
+allocator verifies the opening against the activated logical table root and
+pays the committed beneficiary with exact ERC-20 balance deltas.
+
+`SewConfigurationExecutor.currentEntitlementProofMode` is the live policy source
+(`0 = Requested`, `1 = Required`). A normal governed configuration decision may
+carry an authorized mode through
+`GovGovernor.authorisePrfDecisionWithEntitlementProofMode` and is consumed by
+`applyConfigurationWithEntitlementProofMode`; a mode-bearing decision cannot be
+consumed by the legacy configuration apply function. The initial mode is
+Requested. Required means a valid allocation-claim Merkle path in addition to
+the table opening. Requested permits no claim proof and does not fail solely for
+an invalid supplied path. `minimumMode = Required` remains effective if the live
+mode is later lowered to Requested.
+
+After activation, a successful withdrawal consumes both an ordinal bitmap bit
+and claim identity before transfer. Amount/count/liability counters are checked
+against the admitted totals, and the operation closes only when both the total
+and count are fully discharged. There is no expiry, sweep, or post-activation
+cancellation.

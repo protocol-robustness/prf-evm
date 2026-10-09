@@ -71,12 +71,21 @@ PreparedOperationV2
 V2 moves expensive source assurance before capital exclusivity. It owns the
 Shortfall reserve's live economic-state commitment, availability revision,
 ratification-time observation, and atomic reserve-to-allocator funding boundary.
-`ProductionProRataAllocatorV2` currently stops at exact funded custody; V2 does
-not inherit V1's activation, claims, or Merkle lifecycle.
+The legacy V2 custody route still stops at exact funded custody and does not
+inherit V1's activation, claims, or Merkle lifecycle. The additive
+source-bound-entitlement successor route has its own explicit transition:
 
-A V2 operation being `Funded` does not mean that a V1 allocation is activated or
-that claims are available. Any future V2 claims/activation layer must be an
-explicit later contract and identity, not an implicit reuse of V1 semantics.
+```text
+Funded -> Activated -> Claims -> Closed
+       -> CancelledRefunded (pre-activation only)
+```
+
+Activation binds the admitted logical entitlement table root, count, total, and
+claim root. Withdrawal is one atomic allocator operation: the table opening is
+authoritative in Requested and Required; Required additionally checks the
+allocation-claim Merkle path. The live Requested/Required mode is read from the
+Sew configuration executor, and a caller may require a stricter minimum. V1
+claim ABI, leaf domain, and payout semantics remain unchanged.
 
 ## Pro-rata primitive versus Shortfall demonstration
 
@@ -210,12 +219,12 @@ V2 custody authority is split deliberately:
 
 | Property | V1 | V2 |
 | --- | --- | --- |
-| Proof role | realized execution/allocation activation | source-bound candidate reserve state |
-| Public-values format | V1 exact 384-byte execution format | V2 exact 192-byte six-word format |
-| Schema family | realized-execution V1 | source-bound allocation-binding V2 |
-| Core committed state | operation binding, execution projection, claims | prepared operation root `P`, reserve commitment `C`, allocation/realized roots, operation ID |
+| Proof role | realized execution/allocation activation | legacy source-bound assurance, plus additive beneficiary-entitlement successor |
+| Public-values format | V1 exact 384-byte execution format | legacy V2 exact 192-byte six-word format; entitlement successor exact 288-byte nine-word format |
+| Schema family | realized-execution V1 | source-bound allocation-binding V2; source-bound entitlement profile V1 successor |
+| Core committed state | operation binding, execution projection, claims | legacy `P`, reserve `C`, allocation/realized roots; successor also table/count/total/claim roots |
 | Historical observation | execution/activation receipt semantics | separate ratification-time authoritative observation `S` |
-| Capital timing | V1 allocator funds before activation/claims | V2 proof work occurs before atomic reserve exclusivity |
+| Capital timing | V1 allocator funds before activation/claims | proof work before atomic reserve exclusivity; successor activation establishes liabilities |
 | Admission boundary | V1 execution verifier/receipt | V2 source verifier/receipt |
 | Cross-acceptance | V1 infrastructure accepts V1 only | V2 infrastructure accepts V2 only |
 

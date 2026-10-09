@@ -7,6 +7,8 @@ import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.s
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 import {IShortfallEntitlementAllocatorV1} from "../src/interfaces/IShortfallEntitlementAllocatorV1.sol";
 import {IEntitlementRepresentationV1} from "../src/interfaces/IEntitlementRepresentationV1.sol";
+import {ISewGovernanceProofModeAuthority} from "../src/interfaces/ISewGovernanceProofModeAuthority.sol";
+import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
 import {
     PublicPackedEntitlementRepresentationV1
 } from "../src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol";
@@ -66,14 +68,18 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
     }
 
     function test_RealSuccessorProofAdmitsRatifiesFundsAndActivates() public {
-        _runRealProofPath(true);
+        _runRealProofPath(1);
     }
 
     function test_RealSuccessorProofAdmitsRatifiesFundsAndRefunds() public {
-        _runRealProofPath(false);
+        _runRealProofPath(0);
     }
 
-    function _runRealProofPath(bool activate) private {
+    function test_RealSuccessorProofWithdrawsAcrossLiveRequestedRequiredModes() public {
+        _runRealProofPath(2);
+    }
+
+    function _runRealProofPath(uint8 action) private {
         string memory manifest = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_MANIFEST"));
         assertEq(
             abi.decode(vm.parseJson(manifest, ".schema"), (string)),
@@ -103,6 +109,14 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
             PrfVerifierRegistry(abi.decode(vm.parseJson(manifest, ".contracts.registry"), (address)));
         SewConfigurationExecutor executor =
             SewConfigurationExecutor(abi.decode(vm.parseJson(manifest, ".contracts.executor"), (address)));
+        assertEq(
+            address(
+                ProductionProRataAllocatorV2(abi.decode(vm.parseJson(manifest, ".contracts.allocator"), (address)))
+                    .proofModeSource()
+            ),
+            address(executor),
+            "allocator reads live governed proof mode"
+        );
         PrfSourceBoundEntitlementVerifierAdapterV1 adapter = PrfSourceBoundEntitlementVerifierAdapterV1(
             abi.decode(vm.parseJson(manifest, ".contracts.sourceAdapter"), (address))
         );
@@ -212,7 +226,7 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
         assertTrue(assurance.consumedAssurance(receiptId), "assurance consumed once");
         assertEq(uint8(prepared.state(operationId)), uint8(SourceBoundProRataControllerV2.State.Ratified));
 
-        if (activate) {
+        if (action != 0) {
             bytes32[] memory commitments = _vectorACommitments(witness, values.allocationBindingRoot, operationId);
             PublicPackedEntitlementRepresentationV1 representation =
                 new PublicPackedEntitlementRepresentationV1(commitments, values.entitlementTotal);
@@ -232,6 +246,66 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
                 values.entitlementTotal,
                 "activated liability custody"
             );
+            if (action == 2) {
+                ProductionProRataAllocatorV2 successorAllocator = ProductionProRataAllocatorV2(address(allocator));
+                string[3] memory claims = ["claim-a", "claim-b", "claim-c"];
+                uint256[3] memory amounts = [uint256(35), uint256(21), uint256(14)];
+                address[3] memory beneficiaries = _vectorABeneficiaries(witness);
+                bytes32[3] memory salts = _vectorASalts(witness);
+                bytes32[] memory claimLeaves =
+                    _vectorAClaimLeaves(values.allocationBindingRoot, operationId, claims, amounts, beneficiaries);
+
+                // The operation is already activated. Each policy transition changes only
+                // present-tense enforcement; roots and operation identity stay fixed.
+                successorAllocator.withdraw(
+                    operationId,
+                    ProductionProRataAllocatorV2.EntitlementOpening(
+                        0, bytes(claims[0]), beneficiaries[0], amounts[0], salts[0]
+                    ),
+                    _merkleSiblings(commitments, 0, keccak256("prf.source-bound-entitlement.table-node.v1")),
+                    false,
+                    new bytes32[](0),
+                    ProductionProRataAllocatorV2.ProofMode.Requested
+                );
+                _applyGovernedProofMode(executor, 1, "gate-e-required-mode");
+                successorAllocator.withdraw(
+                    operationId,
+                    ProductionProRataAllocatorV2.EntitlementOpening(
+                        1, bytes(claims[1]), beneficiaries[1], amounts[1], salts[1]
+                    ),
+                    _merkleSiblings(commitments, 1, keccak256("prf.source-bound-entitlement.table-node.v1")),
+                    true,
+                    _merkleSiblings(claimLeaves, 1, keccak256("prf.source-bound-entitlement.claim-node.v1")),
+                    ProductionProRataAllocatorV2.ProofMode.Requested
+                );
+                _applyGovernedProofMode(executor, 0, "gate-e-requested-mode");
+                successorAllocator.withdraw(
+                    operationId,
+                    ProductionProRataAllocatorV2.EntitlementOpening(
+                        2, bytes(claims[2]), beneficiaries[2], amounts[2], salts[2]
+                    ),
+                    _merkleSiblings(commitments, 2, keccak256("prf.source-bound-entitlement.table-node.v1")),
+                    false,
+                    new bytes32[](0),
+                    ProductionProRataAllocatorV2.ProofMode.Requested
+                );
+                assertEq(successorAllocator.claimedAmount(operationId), values.entitlementTotal);
+                assertEq(successorAllocator.claimedCount(operationId), values.entitlementCount);
+                assertEq(successorAllocator.outstandingLiability(operationId), 0);
+                assertEq(IERC20(tokenAddress).balanceOf(address(allocator)), 0, "all liabilities paid");
+                assertEq(IERC20(tokenAddress).balanceOf(beneficiaries[0]), amounts[0]);
+                assertEq(IERC20(tokenAddress).balanceOf(beneficiaries[1]), amounts[1]);
+                assertEq(IERC20(tokenAddress).balanceOf(beneficiaries[2]), amounts[2]);
+                assertEq(
+                    uint8(successorAllocator.entitlementOperation(operationId).state),
+                    uint8(IShortfallAllocatorV2.State.Closed)
+                );
+                assertEq(
+                    values.allocationBindingRoot, funded.allocationBindingRoot, "mode changes do not alter identity"
+                );
+                assertEq(values.evmEntitlementTableRoot, funded.evmEntitlementTableRoot, "table identity stable");
+                assertEq(values.allocationClaimRoot, funded.allocationClaimRoot, "claim identity stable");
+            }
         } else {
             uint256 reserveBeforeRefund = IERC20(tokenAddress).balanceOf(address(reserve));
             uint256 allocatorBeforeRefund = IERC20(tokenAddress).balanceOf(address(allocator));
@@ -259,6 +333,101 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
                 uint8(ratification.state(operationId)),
                 uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.CancelledRefunded)
             );
+        }
+    }
+
+    function _applyGovernedProofMode(SewConfigurationExecutor executor, uint8 mode, string memory label) private {
+        ISewGovernanceProofModeAuthority authority = ISewGovernanceProofModeAuthority(address(executor.authority()));
+        bytes32 parentConfiguration = executor.currentConfigurationRoot();
+        bytes32 newConfiguration = keccak256(abi.encode(label, parentConfiguration));
+        bytes32 registryRoot = executor.currentVerifierRegistryRoot();
+        uint64 epoch = executor.currentEpoch() + 1;
+        uint8 targetMode = 0;
+        bytes32 targetRoot = executor.chainInstanceGenesisRoot();
+        bytes32 decisionRoot =
+            keccak256(abi.encode(label, parentConfiguration, newConfiguration, registryRoot, epoch, mode));
+        address governor = authority.governor();
+        vm.prank(governor);
+        authority.authoriseDecision(
+            decisionRoot,
+            targetMode,
+            targetRoot,
+            parentConfiguration,
+            newConfiguration,
+            registryRoot,
+            registryRoot,
+            epoch
+        );
+        vm.prank(governor);
+        authority.authoriseDecisionProofMode(decisionRoot, mode);
+        executor.applyConfigurationWithEntitlementProofMode(
+            decisionRoot, newConfiguration, registryRoot, epoch, targetMode, targetRoot, new bytes32[](0), mode
+        );
+    }
+
+    function _vectorABeneficiaries(string memory witness) private pure returns (address[3] memory beneficiaries) {
+        uint256[3] memory rows = [uint256(1), uint256(2), uint256(0)];
+        for (uint256 i; i < rows.length; ++i) {
+            beneficiaries[i] = abi.decode(
+                vm.parseJson(witness, string.concat(".beneficiary-mapping[", vm.toString(rows[i]), "].beneficiary")),
+                (address)
+            );
+        }
+    }
+
+    function _vectorASalts(string memory witness) private pure returns (bytes32[3] memory salts) {
+        uint256[3] memory rows = [uint256(2), uint256(0), uint256(1)];
+        for (uint256 i; i < rows.length; ++i) {
+            salts[i] = abi.decode(
+                vm.parseJson(witness, string.concat(".openings[", vm.toString(rows[i]), "].salt")), (bytes32)
+            );
+        }
+    }
+
+    function _vectorAClaimLeaves(
+        bytes32 allocationBindingRoot,
+        bytes32 operationId,
+        string[3] memory claims,
+        uint256[3] memory amounts,
+        address[3] memory beneficiaries
+    ) private pure returns (bytes32[] memory leaves) {
+        leaves = new bytes32[](3);
+        bytes32 domain = keccak256("prf.source-bound-entitlement.claim-leaf.v1");
+        bytes32 profile = keccak256("smart-account-v1");
+        for (uint256 i; i < leaves.length; ++i) {
+            bytes memory claim = bytes(claims[i]);
+            bytes32 claimHash = keccak256(abi.encodePacked(bytes1(0x20), bytes1(uint8(claim.length)), claim));
+            leaves[i] = keccak256(
+                abi.encode(
+                    domain, allocationBindingRoot, operationId, i, claimHash, beneficiaries[i], amounts[i], profile
+                )
+            );
+        }
+    }
+
+    function _merkleSiblings(bytes32[] memory leaves, uint256 index, bytes32 nodeDomain)
+        private
+        pure
+        returns (bytes32[] memory siblings)
+    {
+        uint256 depth;
+        for (uint256 width = leaves.length; width > 1; width = (width + 1) / 2) {
+            ++depth;
+        }
+        siblings = new bytes32[](depth);
+        uint256 cursor;
+        while (leaves.length > 1) {
+            uint256 siblingIndex = (index ^ 1);
+            if (siblingIndex >= leaves.length) siblingIndex = index;
+            siblings[cursor++] = leaves[siblingIndex];
+            uint256 nextLength = (leaves.length + 1) / 2;
+            bytes32[] memory next = new bytes32[](nextLength);
+            for (uint256 i; i < leaves.length; i += 2) {
+                bytes32 right = i + 1 < leaves.length ? leaves[i + 1] : leaves[i];
+                next[i / 2] = keccak256(abi.encodePacked(nodeDomain, leaves[i], right));
+            }
+            leaves = next;
+            index >>= 1;
         }
     }
 
