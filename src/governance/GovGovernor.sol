@@ -10,10 +10,8 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
-import {
-    ISewGovernanceAuthority,
-    ISewGovernanceAuthorityAdmin
-} from "../interfaces/ISewGovernanceAuthority.sol";
+import {ISewGovernanceAuthority, ISewGovernanceAuthorityAdmin} from "../interfaces/ISewGovernanceAuthority.sol";
+import {ISewGovernanceProofModeAuthority} from "../interfaces/ISewGovernanceProofModeAuthority.sol";
 
 /// @title GovGovernor
 /// @notice OpenZeppelin Governor + TimelockControl for SEW Protocol DAO, with a thin PRF authority bridge.
@@ -21,13 +19,7 @@ import {
 /// PRF compatibility does not replace Governor proposal/voting/timelock semantics.
 /// Adapter mutations are exposed through `onlyGovernance`, so they can only occur as part
 /// of an executed Governor proposal even when the executor is an external TimelockController.
-contract GovGovernor is
-    Governor,
-    GovernorSettings,
-    GovernorCountingSimple,
-    GovernorVotes,
-    GovernorTimelockControl
-{
+contract GovGovernor is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorTimelockControl {
     uint256 public constant MAX_NON_CIRCULATING_ADDRESSES = 100;
 
     mapping(address => bool) public nonCirculatingAddresses;
@@ -54,15 +46,11 @@ contract GovGovernor is
         uint64 epoch
     );
 
-    event PrfDecisionRevoked(
-        address indexed adapter,
-        bytes32 indexed decisionRoot
-    );
+    event PrfEntitlementProofModeAuthorized(address indexed adapter, bytes32 indexed decisionRoot, uint8 proofMode);
 
-    event PrfAuthorityStateRootUpdated(
-        address indexed adapter,
-        bytes32 indexed newAuthorityStateRoot
-    );
+    event PrfDecisionRevoked(address indexed adapter, bytes32 indexed decisionRoot);
+
+    event PrfAuthorityStateRootUpdated(address indexed adapter, bytes32 indexed newAuthorityStateRoot);
 
     error QuorumMustBePositive();
     error TooManyInitialAddresses(uint256 length, uint256 max);
@@ -110,40 +98,20 @@ contract GovGovernor is
         }
     }
 
-    function votingDelay()
-        public
-        view
-        override(Governor, GovernorSettings)
-        returns (uint256)
-    {
+    function votingDelay() public view override(Governor, GovernorSettings) returns (uint256) {
         return super.votingDelay();
     }
 
-    function votingPeriod()
-        public
-        view
-        override(Governor, GovernorSettings)
-        returns (uint256)
-    {
+    function votingPeriod() public view override(Governor, GovernorSettings) returns (uint256) {
         return super.votingPeriod();
     }
 
-    function proposalThreshold()
-        public
-        view
-        override(Governor, GovernorSettings)
-        returns (uint256)
-    {
+    function proposalThreshold() public view override(Governor, GovernorSettings) returns (uint256) {
         return super.proposalThreshold();
     }
 
     /// @notice Absolute quorum amount in token units.
-    function quorum(uint256 timepoint)
-        public
-        view
-        override(Governor)
-        returns (uint256)
-    {
+    function quorum(uint256 timepoint) public view override(Governor) returns (uint256) {
         timepoint;
         return absoluteQuorum;
     }
@@ -151,11 +119,7 @@ contract GovGovernor is
     /// @notice Reporting-only circulating-supply approximation retained from the existing SEW Governor.
     /// @dev Historical non-circulating values use past voting power because ERC20Votes does not expose
     ///      historical balances. This value is NOT used for quorum.
-    function getCirculatingSupply(uint256 timepoint)
-        public
-        view
-        returns (uint256)
-    {
+    function getCirculatingSupply(uint256 timepoint) public view returns (uint256) {
         IVotes votesToken = token();
         uint256 totalSupply;
 
@@ -212,8 +176,7 @@ contract GovGovernor is
         uint256 length = nonCirculatingAddressesList.length;
         for (uint256 i = 0; i < length; i++) {
             if (nonCirculatingAddressesList[i] == addr) {
-                nonCirculatingAddressesList[i] =
-                    nonCirculatingAddressesList[length - 1];
+                nonCirculatingAddressesList[i] = nonCirculatingAddressesList[length - 1];
                 nonCirculatingAddressesList.pop();
                 break;
             }
@@ -222,11 +185,7 @@ contract GovGovernor is
         emit NonCirculatingAddressRemoved(addr);
     }
 
-    function getNonCirculatingAddressesCount()
-        external
-        view
-        returns (uint256)
-    {
+    function getNonCirculatingAddressesCount() external view returns (uint256) {
         return nonCirculatingAddressesList.length;
     }
 
@@ -258,16 +217,17 @@ contract GovGovernor is
     ) external onlyGovernance {
         _requireProtocolCompatibleAdapter(adapter);
 
-        ISewGovernanceAuthorityAdmin(adapter).authoriseDecision(
-            decisionRoot,
-            targetMode,
-            targetRoot,
-            parentConfigurationRoot,
-            newConfigurationRoot,
-            parentVerifierRegistryRoot,
-            newVerifierRegistryRoot,
-            epoch
-        );
+        ISewGovernanceAuthorityAdmin(adapter)
+            .authoriseDecision(
+                decisionRoot,
+                targetMode,
+                targetRoot,
+                parentConfigurationRoot,
+                newConfigurationRoot,
+                parentVerifierRegistryRoot,
+                newVerifierRegistryRoot,
+                epoch
+            );
 
         emit PrfDecisionAuthorised(
             adapter,
@@ -282,39 +242,68 @@ contract GovGovernor is
         );
     }
 
+    /// @notice Authorizes a normal configuration decision and binds its live entitlement proof mode.
+    /// @dev Both authorizations are recorded in this same Governor action; executor consumption is atomic.
+    function authorisePrfDecisionWithEntitlementProofMode(
+        address adapter,
+        bytes32 decisionRoot,
+        uint8 targetMode,
+        bytes32 targetRoot,
+        bytes32 parentConfigurationRoot,
+        bytes32 newConfigurationRoot,
+        bytes32 parentVerifierRegistryRoot,
+        bytes32 newVerifierRegistryRoot,
+        uint64 epoch,
+        uint8 proofMode
+    ) external onlyGovernance {
+        _requireProtocolCompatibleAdapter(adapter);
+        ISewGovernanceAuthorityAdmin(adapter)
+            .authoriseDecision(
+                decisionRoot,
+                targetMode,
+                targetRoot,
+                parentConfigurationRoot,
+                newConfigurationRoot,
+                parentVerifierRegistryRoot,
+                newVerifierRegistryRoot,
+                epoch
+            );
+        ISewGovernanceProofModeAuthority(adapter).authoriseDecisionProofMode(decisionRoot, proofMode);
+        emit PrfDecisionAuthorised(
+            adapter,
+            decisionRoot,
+            targetMode,
+            targetRoot,
+            parentConfigurationRoot,
+            newConfigurationRoot,
+            parentVerifierRegistryRoot,
+            newVerifierRegistryRoot,
+            epoch
+        );
+        emit PrfEntitlementProofModeAuthorized(adapter, decisionRoot, proofMode);
+    }
+
     /// @notice Revoke a previously registered decision before local consumption.
-    function revokePrfDecision(address adapter, bytes32 decisionRoot)
-        external
-        onlyGovernance
-    {
+    function revokePrfDecision(address adapter, bytes32 decisionRoot) external onlyGovernance {
         _requireProtocolCompatibleAdapter(adapter);
         ISewGovernanceAuthorityAdmin(adapter).revokeDecision(decisionRoot);
         emit PrfDecisionRevoked(adapter, decisionRoot);
     }
 
     /// @notice Advance the separately committed SEW authority-state root.
-    function updatePrfAuthorityStateRoot(
-        address adapter,
-        bytes32 newAuthorityStateRoot
-    ) external onlyGovernance {
+    function updatePrfAuthorityStateRoot(address adapter, bytes32 newAuthorityStateRoot) external onlyGovernance {
         _requireProtocolCompatibleAdapter(adapter);
-        ISewGovernanceAuthorityAdmin(adapter).updateAuthorityStateRoot(
-            newAuthorityStateRoot
-        );
+        ISewGovernanceAuthorityAdmin(adapter).updateAuthorityStateRoot(newAuthorityStateRoot);
         emit PrfAuthorityStateRootUpdated(adapter, newAuthorityStateRoot);
     }
 
     function _requireProtocolCompatibleAdapter(address adapter) private view {
         if (adapter == address(0)) revert ZeroAddress();
 
-        bytes32 adapterProtocolRoot =
-            ISewGovernanceAuthority(adapter).protocolGenesisRoot();
+        bytes32 adapterProtocolRoot = ISewGovernanceAuthority(adapter).protocolGenesisRoot();
 
         if (adapterProtocolRoot != prfProtocolGenesisRoot) {
-            revert PrfProtocolGenesisMismatch(
-                prfProtocolGenesisRoot,
-                adapterProtocolRoot
-            );
+            revert PrfProtocolGenesisMismatch(prfProtocolGenesisRoot, adapterProtocolRoot);
         }
     }
 
@@ -322,12 +311,7 @@ contract GovGovernor is
     // OpenZeppelin multiple-inheritance overrides
     // -------------------------------------------------------------------------
 
-    function state(uint256 proposalId)
-        public
-        view
-        override(Governor, GovernorTimelockControl)
-        returns (ProposalState)
-    {
+    function state(uint256 proposalId) public view override(Governor, GovernorTimelockControl) returns (ProposalState) {
         return super.state(proposalId);
     }
 
@@ -340,12 +324,11 @@ contract GovGovernor is
         return super.propose(targets, values, calldatas, description);
     }
 
-    function queue(
-        address[] memory targets,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        bytes32 descriptionHash
-    ) public override returns (uint256) {
+    function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
+        public
+        override
+        returns (uint256)
+    {
         return super.queue(targets, values, calldatas, descriptionHash);
     }
 
@@ -383,18 +366,8 @@ contract GovGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    )
-        internal
-        override(Governor, GovernorTimelockControl)
-        returns (uint48)
-    {
-        return super._queueOperations(
-            proposalId,
-            targets,
-            values,
-            calldatas,
-            descriptionHash
-        );
+    ) internal override(Governor, GovernorTimelockControl) returns (uint48) {
+        return super._queueOperations(proposalId, targets, values, calldatas, descriptionHash);
     }
 
     function _executeOperations(
@@ -404,13 +377,7 @@ contract GovGovernor is
         bytes[] memory calldatas,
         bytes32 descriptionHash
     ) internal override(Governor, GovernorTimelockControl) {
-        super._executeOperations(
-            proposalId,
-            targets,
-            values,
-            calldatas,
-            descriptionHash
-        );
+        super._executeOperations(proposalId, targets, values, calldatas, descriptionHash);
     }
 
     function _cancel(
@@ -418,29 +385,15 @@ contract GovGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    )
-        internal
-        override(Governor, GovernorTimelockControl)
-        returns (uint256)
-    {
+    ) internal override(Governor, GovernorTimelockControl) returns (uint256) {
         return super._cancel(targets, values, calldatas, descriptionHash);
     }
 
-    function _executor()
-        internal
-        view
-        override(Governor, GovernorTimelockControl)
-        returns (address)
-    {
+    function _executor() internal view override(Governor, GovernorTimelockControl) returns (address) {
         return super._executor();
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(Governor)
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view override(Governor) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

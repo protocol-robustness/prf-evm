@@ -11,22 +11,14 @@ import {PrfEvidenceAnchor} from "../src/core/PrfEvidenceAnchor.sol";
 import {IPrfEvidenceAnchor} from "../src/interfaces/IPrfEvidenceAnchor.sol";
 
 contract PrfGenesisTest is Test {
-    bytes32 internal constant PROTOCOL_ROOT =
-        0xbf97c43c04b285dc2c37610603af5b263658b3d254d08573d29be4d67d0f1922;
-    bytes32 internal constant AUTHORITY_STATE_ROOT =
-        0xf43f8d60231851c7c8848acb0a5d1bd31f6b7bb03af99e5a234a22a57b8120c8;
-    bytes32 internal constant CONFIG_ROOT_0 =
-        0x1998ff05134c921c52794a1fa18bcc9abf8dab1d9c0f3e9710a07bab26ab0224;
-    bytes32 internal constant CHAIN_ROOT =
-        0x33515d22795e6b303065d36da3f352e4f141117fb81393eb7fe5e2b864f6b580;
-    bytes32 internal constant FIXTURE_VKEY =
-        0x00b9325e81961e4b6dfbe6fa7806796a15c018116225c85f5ef0811afc331d3f;
-    bytes32 internal constant FIXTURE_ELF_SHA256 =
-        0xdeed502019f2cc920aa92e36e15d429c8ace7406cce925195709dc353b3e2495;
-    bytes32 internal constant FIXTURE_SCHEMA_HASH =
-        keccak256("realized-allocation-statement.v1");
-    bytes32 internal constant FIXTURE_PV_SCHEMA_HASH =
-        keccak256("evm-bytes32-v1");
+    bytes32 internal constant PROTOCOL_ROOT = 0xbf97c43c04b285dc2c37610603af5b263658b3d254d08573d29be4d67d0f1922;
+    bytes32 internal constant AUTHORITY_STATE_ROOT = 0xf43f8d60231851c7c8848acb0a5d1bd31f6b7bb03af99e5a234a22a57b8120c8;
+    bytes32 internal constant CONFIG_ROOT_0 = 0x1998ff05134c921c52794a1fa18bcc9abf8dab1d9c0f3e9710a07bab26ab0224;
+    bytes32 internal constant CHAIN_ROOT = 0x33515d22795e6b303065d36da3f352e4f141117fb81393eb7fe5e2b864f6b580;
+    bytes32 internal constant FIXTURE_VKEY = 0x00b9325e81961e4b6dfbe6fa7806796a15c018116225c85f5ef0811afc331d3f;
+    bytes32 internal constant FIXTURE_ELF_SHA256 = 0xdeed502019f2cc920aa92e36e15d429c8ace7406cce925195709dc353b3e2495;
+    bytes32 internal constant FIXTURE_SCHEMA_HASH = keccak256("realized-allocation-statement.v1");
+    bytes32 internal constant FIXTURE_PV_SCHEMA_HASH = keccak256("evm-bytes32-v1");
 
     SewGovernanceAuthorityAdapter internal authority;
     PrfChainInstanceGenesis internal genesis;
@@ -36,10 +28,7 @@ contract PrfGenesisTest is Test {
 
     bytes32 internal VERIFIER_REGISTRY_ROOT_0;
 
-    function _seedRegistryWithOneVerifier(bytes32 verifierId)
-        internal
-        returns (bytes32)
-    {
+    function _seedRegistryWithOneVerifier(bytes32 verifierId) internal returns (bytes32) {
         bytes32[] memory ids = new bytes32[](1);
         address[] memory adapters = new address[](1);
         bytes32[] memory vkeys = new bytes32[](1);
@@ -90,39 +79,20 @@ contract PrfGenesisTest is Test {
     }
 
     function setUp() public {
-        authority = new SewGovernanceAuthorityAdapter(
-            PROTOCOL_ROOT,
-            address(this),
-            AUTHORITY_STATE_ROOT
-        );
+        authority = new SewGovernanceAuthorityAdapter(PROTOCOL_ROOT, address(this), AUTHORITY_STATE_ROOT);
 
         genesis = new PrfChainInstanceGenesis(
-            PROTOCOL_ROOT,
-            block.chainid,
-            1,
-            address(authority),
-            AUTHORITY_STATE_ROOT,
-            CONFIG_ROOT_0,
-            address(this)
+            PROTOCOL_ROOT, block.chainid, 1, address(authority), AUTHORITY_STATE_ROOT, CONFIG_ROOT_0, address(this)
         );
 
-        genesis.sealGenesis(
-            CHAIN_ROOT,
-            address(genesis).codehash,
-            address(authority).codehash
-        );
+        genesis.sealGenesis(CHAIN_ROOT, address(genesis).codehash, address(authority).codehash);
 
         registry = new PrfVerifierRegistry(address(this));
 
         VERIFIER_REGISTRY_ROOT_0 = _emptyCanonicalRoot();
         registry.sealRegistry(VERIFIER_REGISTRY_ROOT_0);
 
-        executor = new SewConfigurationExecutor(
-            genesis,
-            authority,
-            registry,
-            VERIFIER_REGISTRY_ROOT_0
-        );
+        executor = new SewConfigurationExecutor(genesis, authority, registry, VERIFIER_REGISTRY_ROOT_0);
         evidence = new PrfEvidenceAnchor(genesis);
     }
 
@@ -148,30 +118,59 @@ contract PrfGenesisTest is Test {
         bytes32 registryRoot1 = _seedRegistryWithOneVerifier(keccak256("dummy-direct-transition"));
 
         authority.authoriseDecision(
-            decisionRoot,
-            0,
-            CHAIN_ROOT,
-            CONFIG_ROOT_0,
-            configRoot1,
-            VERIFIER_REGISTRY_ROOT_0,
-            registryRoot1,
-            1
+            decisionRoot, 0, CHAIN_ROOT, CONFIG_ROOT_0, configRoot1, VERIFIER_REGISTRY_ROOT_0, registryRoot1, 1
         );
 
-        executor.applyConfiguration(
-            decisionRoot,
-            configRoot1,
-            registryRoot1,
-            1,
-            0,
-            CHAIN_ROOT,
-            new bytes32[](0)
-        );
+        executor.applyConfiguration(decisionRoot, configRoot1, registryRoot1, 1, 0, CHAIN_ROOT, new bytes32[](0));
 
         assertEq(executor.currentConfigurationRoot(), configRoot1);
         assertEq(executor.currentVerifierRegistryRoot(), registryRoot1);
         assertEq(executor.currentEpoch(), 1);
         assertTrue(executor.consumedDecisionRoots(decisionRoot));
+    }
+
+    function testEntitlementProofModeIsLiveAndBoundToConfigurationDecision() public {
+        bytes32 decision1 = keccak256("proof-mode-required-transition");
+        bytes32 config1 = keccak256("proof-mode-config-1");
+        bytes32 registry1 = _seedRegistryWithOneVerifier(keccak256("proof-mode-verifier-1"));
+        authority.authoriseDecision(
+            decision1, 0, CHAIN_ROOT, CONFIG_ROOT_0, config1, VERIFIER_REGISTRY_ROOT_0, registry1, 1
+        );
+        authority.authoriseDecisionProofMode(decision1, 1);
+        assertEq(executor.currentEntitlementProofMode(), 0);
+
+        vm.expectRevert(abi.encodeWithSelector(SewConfigurationExecutor.DecisionNotAuthorised.selector, decision1));
+        executor.applyConfiguration(decision1, config1, registry1, 1, 0, CHAIN_ROOT, new bytes32[](0));
+        executor.applyConfigurationWithEntitlementProofMode(
+            decision1, config1, registry1, 1, 0, CHAIN_ROOT, new bytes32[](0), 1
+        );
+        assertEq(executor.currentEntitlementProofMode(), 1);
+
+        bytes32 decision2 = keccak256("proof-mode-requested-transition");
+        bytes32 config2 = keccak256("proof-mode-config-2");
+        bytes32 registry2 = _seedRegistryWithOneVerifier(keccak256("proof-mode-verifier-2"));
+        authority.authoriseDecision(decision2, 0, CHAIN_ROOT, config1, config2, registry1, registry2, 2);
+        authority.authoriseDecisionProofMode(decision2, 0);
+        executor.applyConfigurationWithEntitlementProofMode(
+            decision2, config2, registry2, 2, 0, CHAIN_ROOT, new bytes32[](0), 0
+        );
+        assertEq(executor.currentEntitlementProofMode(), 0);
+        assertEq(executor.currentConfigurationRoot(), config2);
+    }
+
+    function testUnboundModeDecisionCannotBeAppliedAndInvalidModeRejected() public {
+        bytes32 decision = keccak256("invalid-proof-mode-transition");
+        bytes32 config = keccak256("invalid-proof-mode-config");
+        bytes32 registryRoot = _seedRegistryWithOneVerifier(keccak256("invalid-proof-mode-verifier"));
+        authority.authoriseDecision(
+            decision, 0, CHAIN_ROOT, CONFIG_ROOT_0, config, VERIFIER_REGISTRY_ROOT_0, registryRoot, 1
+        );
+        vm.expectRevert(abi.encodeWithSelector(SewGovernanceAuthorityAdapter.InvalidProofMode.selector, uint8(2)));
+        authority.authoriseDecisionProofMode(decision, 2);
+        vm.expectRevert(abi.encodeWithSelector(SewConfigurationExecutor.DecisionNotAuthorised.selector, decision));
+        executor.applyConfigurationWithEntitlementProofMode(
+            decision, config, registryRoot, 1, 0, CHAIN_ROOT, new bytes32[](0), 1
+        );
     }
 
     function testTargetSetTransition() public {
@@ -183,25 +182,10 @@ contract PrfGenesisTest is Test {
         bytes32 leaf = executor.targetSetLeaf();
 
         authority.authoriseDecision(
-            decisionRoot,
-            1,
-            leaf,
-            CONFIG_ROOT_0,
-            configRoot1,
-            VERIFIER_REGISTRY_ROOT_0,
-            registryRoot1,
-            1
+            decisionRoot, 1, leaf, CONFIG_ROOT_0, configRoot1, VERIFIER_REGISTRY_ROOT_0, registryRoot1, 1
         );
 
-        executor.applyConfiguration(
-            decisionRoot,
-            configRoot1,
-            registryRoot1,
-            1,
-            1,
-            leaf,
-            new bytes32[](0)
-        );
+        executor.applyConfiguration(decisionRoot, configRoot1, registryRoot1, 1, 1, leaf, new bytes32[](0));
 
         assertEq(executor.currentConfigurationRoot(), configRoot1);
         assertEq(executor.currentVerifierRegistryRoot(), registryRoot1);
@@ -216,51 +200,18 @@ contract PrfGenesisTest is Test {
         bytes32 registryRoot2 = _seedRegistryWithOneVerifier(keccak256("dummy-stale-r2"));
 
         authority.authoriseDecision(
-            decisionRoot,
-            0,
-            CHAIN_ROOT,
-            CONFIG_ROOT_0,
-            configRoot1,
-            VERIFIER_REGISTRY_ROOT_0,
-            registryRoot1,
-            1
+            decisionRoot, 0, CHAIN_ROOT, CONFIG_ROOT_0, configRoot1, VERIFIER_REGISTRY_ROOT_0, registryRoot1, 1
         );
-        executor.applyConfiguration(
-            decisionRoot,
-            configRoot1,
-            registryRoot1,
-            1,
-            0,
-            CHAIN_ROOT,
-            new bytes32[](0)
-        );
+        executor.applyConfiguration(decisionRoot, configRoot1, registryRoot1, 1, 0, CHAIN_ROOT, new bytes32[](0));
 
         bytes32 staleDecision = 0xb23a6a8439c0dde5515893e7c90c1e3233b8616e634470f20dc4928bcf3609bc;
 
         authority.authoriseDecision(
-            staleDecision,
-            0,
-            CHAIN_ROOT,
-            CONFIG_ROOT_0,
-            configRoot2,
-            VERIFIER_REGISTRY_ROOT_0,
-            registryRoot2,
-            2
+            staleDecision, 0, CHAIN_ROOT, CONFIG_ROOT_0, configRoot2, VERIFIER_REGISTRY_ROOT_0, registryRoot2, 2
         );
 
-        vm.expectRevert(abi.encodeWithSelector(
-            SewConfigurationExecutor.DecisionNotAuthorised.selector,
-            staleDecision
-        ));
-        executor.applyConfiguration(
-            staleDecision,
-            configRoot2,
-            registryRoot2,
-            2,
-            0,
-            CHAIN_ROOT,
-            new bytes32[](0)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SewConfigurationExecutor.DecisionNotAuthorised.selector, staleDecision));
+        executor.applyConfiguration(staleDecision, configRoot2, registryRoot2, 2, 0, CHAIN_ROOT, new bytes32[](0));
     }
 
     function testDecisionAlreadyConsumedRejects() public {
@@ -270,63 +221,31 @@ contract PrfGenesisTest is Test {
         bytes32 registryRoot1 = _seedRegistryWithOneVerifier(keccak256("dummy-decision-consumed"));
 
         authority.authoriseDecision(
-            decisionRoot,
-            0,
-            CHAIN_ROOT,
-            CONFIG_ROOT_0,
-            configRoot1,
-            VERIFIER_REGISTRY_ROOT_0,
-            registryRoot1,
-            1
+            decisionRoot, 0, CHAIN_ROOT, CONFIG_ROOT_0, configRoot1, VERIFIER_REGISTRY_ROOT_0, registryRoot1, 1
         );
 
-        executor.applyConfiguration(
-            decisionRoot,
-            configRoot1,
-            registryRoot1,
-            1,
-            0,
-            CHAIN_ROOT,
-            new bytes32[](0)
-        );
+        executor.applyConfiguration(decisionRoot, configRoot1, registryRoot1, 1, 0, CHAIN_ROOT, new bytes32[](0));
 
-        vm.expectRevert(abi.encodeWithSelector(
-            SewConfigurationExecutor.DecisionAlreadyConsumed.selector,
-            decisionRoot
-        ));
-        executor.applyConfiguration(
-            decisionRoot,
-            configRoot1,
-            registryRoot1,
-            1,
-            0,
-            CHAIN_ROOT,
-            new bytes32[](0)
-        );
+        vm.expectRevert(abi.encodeWithSelector(SewConfigurationExecutor.DecisionAlreadyConsumed.selector, decisionRoot));
+        executor.applyConfiguration(decisionRoot, configRoot1, registryRoot1, 1, 0, CHAIN_ROOT, new bytes32[](0));
     }
 
     function testEvidenceAnchorIsImmutableFact() public {
-        IPrfEvidenceAnchor.EvidenceCommitment memory commitment =
-            IPrfEvidenceAnchor.EvidenceCommitment({
-                subjectRoot: sha256(bytes("subject")),
-                statementRoot: sha256(bytes("statement")),
-                evidenceRoot: sha256(bytes("evidence")),
-                verificationPolicyRoot: sha256(bytes("verification-policy")),
-                verifierRoot: sha256(bytes("verifier")),
-                sequence: 1
-            });
+        IPrfEvidenceAnchor.EvidenceCommitment memory commitment = IPrfEvidenceAnchor.EvidenceCommitment({
+            subjectRoot: sha256(bytes("subject")),
+            statementRoot: sha256(bytes("statement")),
+            evidenceRoot: sha256(bytes("evidence")),
+            verificationPolicyRoot: sha256(bytes("verification-policy")),
+            verifierRoot: sha256(bytes("verifier")),
+            sequence: 1
+        });
 
         bytes32 anchorId = evidence.anchorEvidence(commitment);
 
         assertEq(evidence.anchorBlock(anchorId), block.number);
         assertEq(evidence.anchorTimestamp(anchorId), block.timestamp);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PrfEvidenceAnchor.AnchorAlreadyExists.selector,
-                anchorId
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(PrfEvidenceAnchor.AnchorAlreadyExists.selector, anchorId));
         evidence.anchorEvidence(commitment);
     }
 }
