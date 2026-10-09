@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@protocol-robustness/prf-evm-deployables",
-  "bundleVersion": "0.1.0",
+  "bundleVersion": "0.2.0",
   "buildArtifactSource": "forge",
   "buildProfile": "default",
   "entries": [
@@ -85,7 +85,15 @@
       "sourcePath": "src/applications/pro-rata/ProductionProRataAllocatorV2.sol",
       "scopeHint": "prf",
       "category": "application",
-      "notes": "V2 source-bound Shortfall allocator custody successor; create/fund only."
+      "notes": "V2 source-bound Shortfall allocator custody successor; funds, activates, refunds pre-activation operations, and executes successor entitlement withdrawals."
+    },
+    {
+      "artifactName": "PublicPackedEntitlementRepresentationV1",
+      "contractName": "PublicPackedEntitlementRepresentationV1",
+      "sourcePath": "src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Reference logical entitlement-table representation for the successor V1 activation root/count/total checks."
     },
     {
       "artifactName": "OnchainShortfallReserveV1",
@@ -126,6 +134,22 @@
       "scopeHint": "prf",
       "category": "application",
       "notes": "V2 atomic source-assurance to reserve ratification controller."
+    },
+    {
+      "artifactName": "SourceBoundProRataEntitlementAssuranceV1",
+      "contractName": "SourceBoundProRataEntitlementAssuranceV1",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataEntitlementAssuranceV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Additive source-bound entitlement V1 assurance and one-shot ratification handoff for the 288-byte successor profile."
+    },
+    {
+      "artifactName": "SourceBoundProRataEntitlementRatificationControllerV1",
+      "contractName": "SourceBoundProRataEntitlementRatificationControllerV1",
+      "sourcePath": "src/applications/shortfall/SourceBoundProRataEntitlementRatificationControllerV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Additive atomic source-bound entitlement V1 ratification and allocator funding controller."
     },
     {
       "artifactName": "SourceBoundProRataControllerV1",
@@ -192,6 +216,20 @@
       "scopeHint": "prf",
       "category": "verifier",
       "notes": "V2 SP1 verifier adapter for the exact 192-byte source-bound allocation-binding statement family.",
+      "verifier": {
+        "family": "sp1",
+        "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",
+        "registryInterface": "IPrfVerifierRegistry",
+        "admissionInterface": "IPrfStatementAdmission"
+      }
+    },
+    {
+      "artifactName": "PrfSourceBoundEntitlementVerifierAdapterV1",
+      "contractName": "PrfSourceBoundEntitlementVerifierAdapterV1",
+      "sourcePath": "src/verification/adapters/PrfSourceBoundEntitlementVerifierAdapterV1.sol",
+      "scopeHint": "prf",
+      "category": "verifier",
+      "notes": "Additive SP1 Groth16 adapter for prf/source-bound-entitlement-public-values.v1 (exact 288-byte projection); fixed successor representation descriptor and schema.",
       "verifier": {
         "family": "sp1",
         "configMechanism": "immutable programVKey/programElfSha256/statementSchemaVersion/publicValuesSchema + external ISP1Verifier",

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Published deployable-artifact bundle version 0.2.0 with the additive source-bound entitlement verifier, assurance, ratification, and reference table artifacts; refreshed the V2 allocator artifact for its current entitlement lifecycle ABI.
+
 - Added one-step successor entitlement withdrawal with live governed Requested/Required enforcement, caller minimum assurance, table-opening verification, optional non-blocking Requested claim proofs, single-use consumption, exact settlement, and liability-based closure. The existing V1 claim path remains unchanged.
 
 - Qualified the deployment-bound successor Gate E Groth16 path on Anvil through logical-table reconstruction, proof admission, assurance, ratification, exact funding, and both activation and cancel-and-refund outcomes using a witness-matched proof fixture.

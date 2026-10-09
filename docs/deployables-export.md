@@ -45,12 +45,19 @@ architectural metadata only.
 | PrfVerifierRegistry | core | verifier-registry snapshots |
 | GovGovernor | governance | PRF governor |
 | ProductionProRataAllocatorV1 | application | pro-rata allocator |
+| ProductionProRataAllocatorV2 | application | source-bound custody and successor entitlement lifecycle |
 | OnchainShortfallReserveV1 | application | shortfall reserve |
+| OnchainShortfallReserveV2 | application | source-bound Shortfall reserve ratification and custody |
 | SourceBoundProRataControllerV1 | application | source-bound pro-rata controller |
+| SourceBoundProRataEntitlementAssuranceV1 | application | successor entitlement assurance and ratification handoff |
+| SourceBoundProRataEntitlementRatificationControllerV1 | application | successor atomic ratification and funding |
+| PublicPackedEntitlementRepresentationV1 | application | reference logical entitlement table |
 | PrfAssuredOperationConsumer | consumer | assured-operation consumer |
 | PrfRealizedAllocationVerifierAdapter | verifier | SP1 adapter (realized-allocation) |
 | PrfRealizedExecutionVerifierAdapter | verifier | SP1 adapter (realized-execution) |
 | PrfSourceBoundStatementVerifierAdapter | verifier | SP1 adapter (source-bound) |
+| PrfSourceBoundStatementVerifierAdapterV2 | verifier | frozen 192-byte source-bound V2 profile |
+| PrfSourceBoundEntitlementVerifierAdapterV1 | verifier | additive 288-byte source-bound entitlement profile |
 | SewConfigurationExecutor | integration | PRF-side config executor (SEW integration) |
 | SewGovernanceAuthorityAdapter | integration | PRF-side authority adapter (SEW integration) |
 
@@ -68,7 +75,7 @@ from `lib/`. No PRF libraries require external linking in the current source
 {
   "schemaVersion": 1,
   "packageName": "@protocol-robustness/prf-evm-deployables",  // configurable
-  "bundleVersion": "0.1.0",                                    // configurable
+"bundleVersion": "0.2.0",                                    // configurable
   "source": {
     "repository": "protocol-robustness/prf-evm",
     "commit": "<git sha | jj change id>",
