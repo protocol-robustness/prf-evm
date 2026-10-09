@@ -25,6 +25,9 @@ import {IEntitlementRepresentationV1} from "../src/interfaces/IEntitlementRepres
 import {
     PublicPackedEntitlementRepresentationV1
 } from "../src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol";
+import {
+    CommittedImmutableEntitlementRepresentationV1
+} from "../src/applications/pro-rata/CommittedImmutableEntitlementRepresentationV1.sol";
 
 contract EntitlementRatificationToken is ERC20 {
     constructor() ERC20("Entitlement Gate E", "EGE") {}
@@ -220,6 +223,28 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
             uint8(ratification.state(OPERATION)),
             uint8(SourceBoundProRataEntitlementRatificationControllerV1.State.Activated)
         );
+    }
+
+    function test_ActivationAcceptsEquivalentCommittedImmutableRepresentation() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+
+        bytes32[] memory commitments = new bytes32[](2);
+        commitments[0] = keccak256("reference-entitlement-0");
+        commitments[1] = keccak256("reference-entitlement-1");
+        CommittedImmutableEntitlementRepresentationV1 productionTable =
+            new CommittedImmutableEntitlementRepresentationV1(commitments, 90, 1);
+        assertEq(productionTable.logicalRoot(), TABLE, "same B2 logical root");
+
+        ratification.activateEntitlement(OPERATION, IEntitlementRepresentationV1(address(productionTable)));
+
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory activated =
+            allocator.entitlementOperation(OPERATION);
+        assertEq(uint8(activated.state), uint8(IShortfallAllocatorV2.State.Activated));
+        assertEq(activated.representation, address(productionTable));
+        assertEq(activated.allocationClaimRoot, CLAIM);
+        assertEq(allocator.outstandingLiability(OPERATION), 90);
     }
 
     function test_CancelAndRefundReturnsExactCapitalAndIsTerminal() public {

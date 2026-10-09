@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added `CommittedImmutableEntitlementRepresentationV1`, a bytecode-backed immutable-shard implementation of the existing logical entitlement table root; physical sharding preserves the same root/count/total and is exported in deployable bundle 0.3.0.
+
 - Published deployable-artifact bundle version 0.2.0 with the additive source-bound entitlement verifier, assurance, ratification, and reference table artifacts; refreshed the V2 allocator artifact for its current entitlement lifecycle ABI.
 
 - Added one-step successor entitlement withdrawal with live governed Requested/Required enforcement, caller minimum assurance, table-opening verification, optional non-blocking Requested claim proofs, single-use consumption, exact settlement, and liability-based closure. The existing V1 claim path remains unchanged.

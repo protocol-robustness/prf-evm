@@ -12,6 +12,9 @@ import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/Product
 import {
     PublicPackedEntitlementRepresentationV1
 } from "../src/applications/pro-rata/PublicPackedEntitlementRepresentationV1.sol";
+import {
+    CommittedImmutableEntitlementRepresentationV1
+} from "../src/applications/pro-rata/CommittedImmutableEntitlementRepresentationV1.sol";
 import {PrfStatementAdmission} from "../src/core/PrfStatementAdmission.sol";
 import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
 import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
@@ -228,8 +231,8 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
 
         if (action != 0) {
             bytes32[] memory commitments = _vectorACommitments(witness, values.allocationBindingRoot, operationId);
-            PublicPackedEntitlementRepresentationV1 representation =
-                new PublicPackedEntitlementRepresentationV1(commitments, values.entitlementTotal);
+            CommittedImmutableEntitlementRepresentationV1 representation =
+                new CommittedImmutableEntitlementRepresentationV1(commitments, values.entitlementTotal, 2);
             assertEq(representation.logicalRoot(), values.evmEntitlementTableRoot, "fixture-derived logical table");
             ratification.activateEntitlement(operationId, IEntitlementRepresentationV1(address(representation)));
             IShortfallEntitlementAllocatorV1.EntitlementOperation memory activated =

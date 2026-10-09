@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@protocol-robustness/prf-evm-deployables",
-  "bundleVersion": "0.2.0",
+  "bundleVersion": "0.3.0",
   "buildArtifactSource": "forge",
   "buildProfile": "default",
   "entries": [
@@ -94,6 +94,14 @@
       "scopeHint": "prf",
       "category": "application",
       "notes": "Reference logical entitlement-table representation for the successor V1 activation root/count/total checks."
+    },
+    {
+      "artifactName": "CommittedImmutableEntitlementRepresentationV1",
+      "contractName": "CommittedImmutableEntitlementRepresentationV1",
+      "sourcePath": "src/applications/pro-rata/CommittedImmutableEntitlementRepresentationV1.sol",
+      "scopeHint": "prf",
+      "category": "application",
+      "notes": "Production candidate logical entitlement table using immutable bytecode-backed commitment shards; physical shard size does not affect the logical root."
     },
     {
       "artifactName": "OnchainShortfallReserveV1",

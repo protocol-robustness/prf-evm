@@ -52,6 +52,7 @@ architectural metadata only.
 | SourceBoundProRataEntitlementAssuranceV1 | application | successor entitlement assurance and ratification handoff |
 | SourceBoundProRataEntitlementRatificationControllerV1 | application | successor atomic ratification and funding |
 | PublicPackedEntitlementRepresentationV1 | application | reference logical entitlement table |
+| CommittedImmutableEntitlementRepresentationV1 | application | immutable bytecode-backed production candidate for the same logical entitlement table |
 | PrfAssuredOperationConsumer | consumer | assured-operation consumer |
 | PrfRealizedAllocationVerifierAdapter | verifier | SP1 adapter (realized-allocation) |
 | PrfRealizedExecutionVerifierAdapter | verifier | SP1 adapter (realized-execution) |
@@ -75,7 +76,7 @@ from `lib/`. No PRF libraries require external linking in the current source
 {
   "schemaVersion": 1,
   "packageName": "@protocol-robustness/prf-evm-deployables",  // configurable
-"bundleVersion": "0.2.0",                                    // configurable
+"bundleVersion": "0.3.0",                                    // configurable
   "source": {
     "repository": "protocol-robustness/prf-evm",
     "commit": "<git sha | jj change id>",
