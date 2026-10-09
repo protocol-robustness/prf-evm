@@ -30,7 +30,7 @@ The final Foundry test still runs against the same Anvil instance and supplied p
 
 The nine-word entitlement profile intentionally omits `realizedStatementRoot`. It therefore cannot use the frozen V2 `IOnchainShortfallReserveV2.RatificationRequest` / `IShortfallAllocatorV2.Operation` handoff by aliasing another root. The additive `SourceBoundProRataEntitlementRatificationControllerV1` route consumes the successor assurance tuple and calls the entitlement reserve/allocator interfaces. These store the allocation-binding root, descriptor root, logical EVM table root, count, total, and claim root as separate fields, and fund only when the live available amount equals the proved entitlement total. The old V2 ratification ABI remains unchanged.
 
-The focused controller test verifies exact funding and rollback when the reserve changes after proof preparation. The historical deployment orchestrator and `GateEDeploymentDerivedRealProofTest` still exercise the 192-byte V2 profile. The separate successor deployment producer/materializer has completed the deployment-bound proof → admission → assurance → ratification → funding path. The successor Gate E test now also checks fixture-derived representation activation; that extended test still requires a live/restored matching Anvil deployment to qualify.
+The focused controller test verifies exact funding and rollback when the reserve changes after proof preparation. The historical deployment orchestrator and `GateEDeploymentDerivedRealProofTest` still exercise the 192-byte V2 profile. The separate successor deployment producer/materializer has completed the deployment-bound proof → admission → assurance → ratification → funding path. The successor Gate E test now checks fixture-derived representation activation and cancel-and-refund against the same deterministic Anvil deployment identity used to materialize and prove the witness. The deployment-bound witness SHA-256 is `d1423f38382fd0c6c7d072b9a79f1b39256f9e24793f793b0ed5a2d16eca1182`; its manifest digest is `sha256:7ee98ade8ab9138d325240826cab2fa3831a80749bbc67c572d5377a9b94e666`. All three tests in `GateEEntitlementDeploymentDerivedRealProofTest` passed, covering logical-table reconstruction, activation, and exact cancel-and-refund accounting.
 
 ## Stage C reference representation and activation
 
@@ -44,7 +44,7 @@ The successor deployment and fixture path is now additive:
 GATE_E_ENTITLEMENT_MANIFEST=/opt/prf-b3-target/gate-e-entitlement-manifest.json \
   pnpm gate-e-entitlement:deploy
 
-pnpm gate-e-entitlement:witness -- \
+pnpm gate-e-entitlement:witness \
   /opt/prf-b3-target/gate-e-entitlement-manifest.json \
   /path/to/source-bound-entitlement-v1.json \
   /opt/prf-b3-target/gate-e-entitlement-input.json
@@ -55,7 +55,7 @@ The deployment command expects the `GATE_E_*` identity/configuration values cons
 After proving the materialized input with `source-bound-entitlement-prove --prove --input ... --fixture ...`, convert the raw B3 fixture before Solidity tests:
 
 ```bash
-pnpm gate-e-entitlement:fixture -- \
+pnpm gate-e-entitlement:fixture \
   /opt/prf-b3-target/gate-e-entitlement-manifest.json \
   /path/to/source-bound-entitlement-v1.json \
   /opt/prf-b3-target/gate-e-entitlement-input.json \
@@ -63,4 +63,4 @@ pnpm gate-e-entitlement:fixture -- \
   /opt/prf-b3-target/gate-e-entitlement-proof-fixture.json
 ```
 
-The adapter refuses inconsistent program/VKey/ELF, witness hash, schema, roots, count, total, or proof type. The resulting fixture retains the B3 proof and public values and adds deployment/vector provenance. Run `GateEEntitlementDeploymentDerivedRealProofTest` against the same Anvil chain with `GATE_E_ENTITLEMENT_MANIFEST`, `GATE_E_ENTITLEMENT_INPUT`, and `GATE_E_ENTITLEMENT_FIXTURE` set. This path is implemented but remains unverified with a deployment-bound real proof until the operator generates and supplies that proof.
+The adapter refuses inconsistent program/VKey/ELF, witness hash, schema, roots, count, total, or proof type. The resulting fixture retains the B3 proof and public values and adds deployment/vector provenance. Run `GateEEntitlementDeploymentDerivedRealProofTest` against the same Anvil chain with `GATE_E_ENTITLEMENT_MANIFEST`, `GATE_E_ENTITLEMENT_INPUT`, and `GATE_E_ENTITLEMENT_FIXTURE` set. This deployment-bound successor path is now verified with the real Groth16 proof: the converter accepted the witness-matched B3 fixture, and all three Foundry tests passed, including activation and cancel-and-refund. The temporary Foundry fixture copy is not committed; the proof, manifest, witness, and broadcast records are retained under the operator's `/opt/prf-b3-target/gate-e-20261009` run directory.
