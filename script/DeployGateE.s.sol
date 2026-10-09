@@ -120,7 +120,7 @@ contract DeployGateE is Script {
             new PrfStatementAdmission(genesis, executor, verifierRegistry, configurationRoot, configurationEpoch);
 
         LocalGateEToken gateToken = new LocalGateEToken(authority, INITIAL_CAPITAL);
-        ProductionProRataAllocatorV2 deployedAllocator = new ProductionProRataAllocatorV2(authority);
+        ProductionProRataAllocatorV2 deployedAllocator = new ProductionProRataAllocatorV2(authority, executor);
         OnchainShortfallReserveV2 deployedReserve =
             new OnchainShortfallReserveV2(IERC20(address(gateToken)), authority, PROTECTED_CAPITAL, deployedAllocator);
         SourceBoundProRataControllerV2 preparedController = new SourceBoundProRataControllerV2();

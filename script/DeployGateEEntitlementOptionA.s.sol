@@ -65,18 +65,18 @@ contract DeployGateEEntitlementOptionA is Script {
         genesis.sealGenesis(chainInstanceRoot, address(genesis).codehash, address(authorityAdapter).codehash);
 
         SP1Verifier sp1Verifier = new SP1Verifier();
-        PrfSourceBoundEntitlementVerifierAdapterV1 sourceAdapter =
-            new PrfSourceBoundEntitlementVerifierAdapterV1(
-                ISP1Verifier(address(sp1Verifier)), sourceProgramVKey, sourceProgramElfSha256
-            );
+        PrfSourceBoundEntitlementVerifierAdapterV1 sourceAdapter = new PrfSourceBoundEntitlementVerifierAdapterV1(
+            ISP1Verifier(address(sp1Verifier)), sourceProgramVKey, sourceProgramElfSha256
+        );
         PrfVerifierRegistry registry = new PrfVerifierRegistry(authority);
-        bytes32 registryRoot = _registerAndSeal(registry, sourceAdapter, sourceVerifierId, sourceProgramVKey, sourceProgramElfSha256);
-        SewConfigurationExecutor executor = new SewConfigurationExecutor(genesis, authorityAdapter, registry, registryRoot);
-        PrfStatementAdmission admission =
-            new PrfStatementAdmission(genesis, executor, registry, configRoot, 0);
+        bytes32 registryRoot =
+            _registerAndSeal(registry, sourceAdapter, sourceVerifierId, sourceProgramVKey, sourceProgramElfSha256);
+        SewConfigurationExecutor executor =
+            new SewConfigurationExecutor(genesis, authorityAdapter, registry, registryRoot);
+        PrfStatementAdmission admission = new PrfStatementAdmission(genesis, executor, registry, configRoot, 0);
 
         LocalEntitlementGateEToken gateToken = new LocalEntitlementGateEToken(authority, INITIAL_CAPITAL);
-        ProductionProRataAllocatorV2 allocator = new ProductionProRataAllocatorV2(authority);
+        ProductionProRataAllocatorV2 allocator = new ProductionProRataAllocatorV2(authority, executor);
         OnchainShortfallReserveV2 reserve =
             new OnchainShortfallReserveV2(IERC20(address(gateToken)), authority, PROTECTED_CAPITAL, allocator);
         SourceBoundProRataControllerV2 prepared = new SourceBoundProRataControllerV2();
@@ -123,40 +123,75 @@ contract DeployGateEEntitlementOptionA is Script {
             abi.encodePacked(
                 '{"schema":"prf-evm.gate-e-entitlement-deployment.v1","chainId":',
                 vm.toString(block.chainid),
-                ',"deployer":"', vm.toString(authority),
+                ',"deployer":"',
+                vm.toString(authority),
                 '","programId":"source-bound-entitlement-sp1-program.v1","programVKey":"',
-                vm.toString(sourceProgramVKey), '","programElfSha256":"', vm.toString(sourceProgramElfSha256),
-                '","sourceStatementSchema":"', vm.toString(sourceAdapter.statementSchemaVersion()),
-                '","publicValuesSchema":"', vm.toString(sourceAdapter.publicValuesSchema()),
-                '","preparedOperationRoot":"', vm.toString(preparedRoot),
-                '","reserveStateCommitment":"', vm.toString(reserveCommitment),
-                '","operationId":"', vm.toString(operationId),
-                '","configurationRoot":"', vm.toString(configRoot),
-                '","configurationEpoch":0,"policyRoot":"', vm.toString(policyRoot),
-                '","reserveBindingRoot":"', vm.toString(reserveBindingRoot),
-                '","beneficiaryProfile":"smart-account-v1","registryRoot":"', vm.toString(registryRoot),
-                '","economicReserveState":{"grossBalance":"', vm.toString(economics.grossBalance),
-                '","reservedBefore":"', vm.toString(economics.reservedBefore),
-                '","protectedCapital":"', vm.toString(economics.protectedAmount),
-                '","availableAmount":"', vm.toString(economics.availableAmount),
-                '","availabilityRevision":"', vm.toString(uint256(economics.revision)),
-                '"},"contracts":{"token":"', vm.toString(address(gateToken)),
-                '","reserve":"', vm.toString(address(reserve)),
-                '","allocator":"', vm.toString(address(allocator)),
-                '","preparedController":"', vm.toString(address(prepared)),
-                '","assurance":"', vm.toString(address(assurance)),
-                '","ratificationController":"', vm.toString(address(ratification)),
-                '","admission":"', vm.toString(address(admission)),
-                '","sourceAdapter":"', vm.toString(address(sourceAdapter)),
-                '","verifier":"', vm.toString(address(sp1Verifier)),
-                '","registry":"', vm.toString(address(registry)),
-                '","executor":"', vm.toString(address(executor)),
-                '","genesis":"', vm.toString(address(genesis)),
-                '"},"localOnly":{"sourceVerifierId":"', vm.toString(sourceVerifierId),
-                '","executionVerifierId":"', vm.toString(executionVerifierId),
-                '","executionStatementSchema":"', vm.toString(executionStatementSchema),
-                '","executionPublicValuesSchema":"', vm.toString(executionPublicValuesSchema),
-                '","residualRecipient":"', vm.toString(residualRecipient), '"}}'
+                vm.toString(sourceProgramVKey),
+                '","programElfSha256":"',
+                vm.toString(sourceProgramElfSha256),
+                '","sourceStatementSchema":"',
+                vm.toString(sourceAdapter.statementSchemaVersion()),
+                '","publicValuesSchema":"',
+                vm.toString(sourceAdapter.publicValuesSchema()),
+                '","preparedOperationRoot":"',
+                vm.toString(preparedRoot),
+                '","reserveStateCommitment":"',
+                vm.toString(reserveCommitment),
+                '","operationId":"',
+                vm.toString(operationId),
+                '","configurationRoot":"',
+                vm.toString(configRoot),
+                '","configurationEpoch":0,"policyRoot":"',
+                vm.toString(policyRoot),
+                '","reserveBindingRoot":"',
+                vm.toString(reserveBindingRoot),
+                '","beneficiaryProfile":"smart-account-v1","registryRoot":"',
+                vm.toString(registryRoot),
+                '","economicReserveState":{"grossBalance":"',
+                vm.toString(economics.grossBalance),
+                '","reservedBefore":"',
+                vm.toString(economics.reservedBefore),
+                '","protectedCapital":"',
+                vm.toString(economics.protectedAmount),
+                '","availableAmount":"',
+                vm.toString(economics.availableAmount),
+                '","availabilityRevision":"',
+                vm.toString(uint256(economics.revision)),
+                '"},"contracts":{"token":"',
+                vm.toString(address(gateToken)),
+                '","reserve":"',
+                vm.toString(address(reserve)),
+                '","allocator":"',
+                vm.toString(address(allocator)),
+                '","preparedController":"',
+                vm.toString(address(prepared)),
+                '","assurance":"',
+                vm.toString(address(assurance)),
+                '","ratificationController":"',
+                vm.toString(address(ratification)),
+                '","admission":"',
+                vm.toString(address(admission)),
+                '","sourceAdapter":"',
+                vm.toString(address(sourceAdapter)),
+                '","verifier":"',
+                vm.toString(address(sp1Verifier)),
+                '","registry":"',
+                vm.toString(address(registry)),
+                '","executor":"',
+                vm.toString(address(executor)),
+                '","genesis":"',
+                vm.toString(address(genesis)),
+                '"},"localOnly":{"sourceVerifierId":"',
+                vm.toString(sourceVerifierId),
+                '","executionVerifierId":"',
+                vm.toString(executionVerifierId),
+                '","executionStatementSchema":"',
+                vm.toString(executionStatementSchema),
+                '","executionPublicValuesSchema":"',
+                vm.toString(executionPublicValuesSchema),
+                '","residualRecipient":"',
+                vm.toString(residualRecipient),
+                '"}}'
             )
         );
         console2.log("GATE_E_ENTITLEMENT_MANIFEST_JSON", manifest);
@@ -185,7 +220,9 @@ contract DeployGateEEntitlementOptionA is Script {
         statements[0] = adapter.statementSchemaVersion();
         publicValuesSchemas[0] = adapter.publicValuesSchema();
         active[0] = true;
-        root = registry.computeCanonicalRoot(ids, adapters, vkeys, elfs, programs, statements, publicValuesSchemas, active);
+        root = registry.computeCanonicalRoot(
+            ids, adapters, vkeys, elfs, programs, statements, publicValuesSchemas, active
+        );
 
         bytes32[] memory emptyIds = new bytes32[](0);
         address[] memory emptyAdapters = new address[](0);

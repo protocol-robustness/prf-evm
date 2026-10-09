@@ -15,6 +15,7 @@ interface IOnchainShortfallEntitlementReserveV1 {
         uint256 entitlementCount;
         uint256 entitlementTotal;
         bytes32 allocationClaimRoot;
+        bytes32 beneficiaryProfileWord;
         address residualRecipient;
     }
 

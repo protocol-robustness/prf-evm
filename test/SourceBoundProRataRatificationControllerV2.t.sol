@@ -4,6 +4,7 @@ pragma solidity ^0.8.33;
 import {Test} from "forge-std/Test.sol";
 import {ISourceBoundProRataAssuranceV2} from "../src/interfaces/ISourceBoundProRataAssuranceV2.sol";
 import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
+import {MockEntitlementProofModeSource} from "./mocks/MockEntitlementProofModeSource.sol";
 import {OnchainShortfallReserveV2} from "../src/applications/shortfall/OnchainShortfallReserveV2.sol";
 import {V2ReserveToken} from "./OnchainShortfallReserveV2.t.sol";
 import {SourceBoundProRataControllerV2} from "../src/applications/shortfall/SourceBoundProRataControllerV2.sol";
@@ -187,7 +188,8 @@ contract SourceBoundProRataRatificationControllerV2Test is Test {
 
     function test_LegacyFundCancelRefundRestoresReserveAccountingEndToEnd() public {
         V2ReserveToken liveToken = new V2ReserveToken();
-        ProductionProRataAllocatorV2 liveAllocator = new ProductionProRataAllocatorV2(address(this));
+        ProductionProRataAllocatorV2 liveAllocator =
+            new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
         OnchainShortfallReserveV2 liveReserve =
             new OnchainShortfallReserveV2(liveToken, address(this), 10, liveAllocator);
         SourceBoundProRataControllerV2 livePrepared = new SourceBoundProRataControllerV2();

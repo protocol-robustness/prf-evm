@@ -17,6 +17,7 @@ interface IShortfallEntitlementAllocatorV1 {
         uint256 entitlementCount;
         uint256 entitlementTotal;
         bytes32 allocationClaimRoot;
+        bytes32 beneficiaryProfileWord;
         IERC20 token;
         uint256 amount;
         address residualRecipient;
@@ -31,6 +32,7 @@ interface IShortfallEntitlementAllocatorV1 {
         uint256 entitlementCount,
         uint256 entitlementTotal,
         bytes32 allocationClaimRoot,
+        bytes32 beneficiaryProfileWord,
         IERC20 token,
         uint256 amount,
         address residualRecipient

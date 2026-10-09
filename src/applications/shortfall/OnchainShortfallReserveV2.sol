@@ -305,6 +305,7 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
             request.entitlementCount,
             request.entitlementTotal,
             request.allocationClaimRoot,
+            request.beneficiaryProfileWord,
             token,
             available,
             request.residualRecipient
@@ -319,6 +320,7 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
                 || created.entitlementCount != request.entitlementCount
                 || created.entitlementTotal != request.entitlementTotal
                 || created.allocationClaimRoot != request.allocationClaimRoot
+                || created.beneficiaryProfileWord != request.beneficiaryProfileWord
         ) revert AllocatorMismatch();
 
         uint256 reserveBefore = token.balanceOf(address(this));

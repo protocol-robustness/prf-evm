@@ -20,6 +20,7 @@ import {IOnchainShortfallReserveV2} from "../src/interfaces/IOnchainShortfallRes
 import {OnchainShortfallReserveV2} from "../src/applications/shortfall/OnchainShortfallReserveV2.sol";
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
+import {MockEntitlementProofModeSource} from "./mocks/MockEntitlementProofModeSource.sol";
 import {V2RatificationReserveMock} from "./mocks/V2RatificationReserveMock.sol";
 
 contract AssuranceV2TokenMock is ERC20 {
@@ -220,7 +221,8 @@ contract SourceBoundProRataAssuranceV2Test is Test {
 
     function test_RealReserveAndV2AllocatorCompleteAtomicFunding() public {
         AssuranceV2TokenMock token = new AssuranceV2TokenMock();
-        ProductionProRataAllocatorV2 allocator = new ProductionProRataAllocatorV2(address(this));
+        ProductionProRataAllocatorV2 allocator =
+            new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
         OnchainShortfallReserveV2 reserve = new OnchainShortfallReserveV2(token, address(this), 10, allocator);
         allocator.bindFundingAuthority(address(reserve));
 

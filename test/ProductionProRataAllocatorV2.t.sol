@@ -4,11 +4,15 @@ pragma solidity ^0.8.33;
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
+import {MockEntitlementProofModeSource} from "./mocks/MockEntitlementProofModeSource.sol";
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 
 contract ProductionV2AllocatorToken is ERC20 {
     constructor() ERC20("Allocator V2", "AV2") {}
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
 }
 
 contract ProductionProRataAllocatorV2Test is Test {
@@ -22,7 +26,7 @@ contract ProductionProRataAllocatorV2Test is Test {
 
     function setUp() public {
         token = new ProductionV2AllocatorToken();
-        allocator = new ProductionProRataAllocatorV2(authority);
+        allocator = new ProductionProRataAllocatorV2(authority, new MockEntitlementProofModeSource());
     }
 
     function test_BindsReserveOnceAndFundsExactOperation() public {

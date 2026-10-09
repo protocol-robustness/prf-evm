@@ -7,6 +7,7 @@ import {IPrfStatementAdmission} from "../src/interfaces/IPrfStatementAdmission.s
 import {ISP1Verifier} from "../src/verification/interfaces/ISP1Verifier.sol";
 import {IShortfallAllocatorV2} from "../src/interfaces/IShortfallAllocatorV2.sol";
 import {ProductionProRataAllocatorV2} from "../src/applications/pro-rata/ProductionProRataAllocatorV2.sol";
+import {MockEntitlementProofModeSource} from "./mocks/MockEntitlementProofModeSource.sol";
 import {OnchainShortfallReserveV2} from "../src/applications/shortfall/OnchainShortfallReserveV2.sol";
 import {SourceBoundProRataControllerV2} from "../src/applications/shortfall/SourceBoundProRataControllerV2.sol";
 import {
@@ -100,7 +101,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
     function setUp() public {
         token = new EntitlementRatificationToken();
         token.mint(address(this), 100);
-        allocator = new ProductionProRataAllocatorV2(address(this));
+        allocator = new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
         reserve = new OnchainShortfallReserveV2(token, address(this), 10, allocator);
         allocator.bindFundingAuthority(address(reserve));
         prepared = new SourceBoundProRataControllerV2();

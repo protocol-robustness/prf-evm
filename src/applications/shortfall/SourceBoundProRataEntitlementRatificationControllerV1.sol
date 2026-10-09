@@ -120,6 +120,7 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
                 entitlementCount: payload.entitlementCount,
                 entitlementTotal: payload.entitlementTotal,
                 allocationClaimRoot: payload.allocationClaimRoot,
+                beneficiaryProfileWord: preparedController.preparedBeneficiaryProfileWord(operationId),
                 residualRecipient: residualRecipient
             })
             );
