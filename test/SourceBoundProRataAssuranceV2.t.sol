@@ -266,6 +266,29 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         f.ratification.replaceStaleAssurance(OPERATION, bytes32(0), bytes32(0), 3, keccak256("late"), "");
     }
 
+    function test_ReplacementRejectsAbandonedPreparedOperation() public {
+        V2RatificationReserveMock reserve = new V2RatificationReserveMock();
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(0x2222), address(0x3333));
+        reserve.configure(commitment, false, 70, 18);
+        _prepareIntegratedAssurance(f, commitment);
+        bytes32 originalAssurance = f.assurance.assuranceCommitment(OPERATION);
+
+        f.prepared.abandonPreparedOperation(OPERATION);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataRatificationControllerV2.InvalidPreparedOperation.selector,
+                SourceBoundProRataControllerV2.State.Abandoned
+            )
+        );
+        f.ratification.replaceStaleAssurance(OPERATION, bytes32(0), bytes32(0), 1, bytes32(0), "");
+
+        assertEq(uint8(f.prepared.state(OPERATION)), uint8(SourceBoundProRataControllerV2.State.Abandoned));
+        assertEq(f.assurance.assuranceCommitment(OPERATION), originalAssurance);
+        assertFalse(f.assurance.consumedAssurance(f.receiptId));
+    }
+
     function test_CurrentOrInvalidReplacementPreservesOriginalAssurance() public {
         bytes32 stale = keccak256("stale-reserve-current-check");
         bytes32 live = keccak256("live-reserve-current-check");

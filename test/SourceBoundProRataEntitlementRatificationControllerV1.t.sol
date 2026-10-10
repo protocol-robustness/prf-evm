@@ -321,6 +321,26 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         );
     }
 
+    function test_ReplacementRejectsAbandonedPreparedOperation() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        bytes32 originalAssurance = assurance.assuranceCommitment(OPERATION);
+
+        prepared.abandonPreparedOperation(OPERATION);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.InvalidPreparedOperation.selector,
+                SourceBoundProRataControllerV2.State.Abandoned
+            )
+        );
+        ratification.replaceStaleAssurance(OPERATION, bytes32(0), bytes32(0), 1, bytes32(0), "");
+
+        assertEq(uint8(prepared.state(OPERATION)), uint8(SourceBoundProRataControllerV2.State.Abandoned));
+        assertEq(assurance.assuranceCommitment(OPERATION), originalAssurance);
+        assertFalse(assurance.consumedAssurance(RECEIPT));
+    }
+
     function test_ActivationRequiresTheAdmittedLogicalRootCountAndTotal() public {
         assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
         ratification.registerPrepared(OPERATION);
