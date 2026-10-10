@@ -239,3 +239,29 @@ and link back to activation evidence. DAG node completion means evidence capture
 completed; rejected-attempt nodes do not represent successful economic execution.
 The refund branch requires a separate funded operation and deployment-derived proof
 because this Activated/Closed operation cannot ordinarily be cancelled.
+
+
+### Separate persistent refund qualification
+
+The refund branch uses a separate prepared local deployment in
+`/opt/prf-b3-target/gate-e-20261010-refund-00d90`, preserving the settled
+withdrawal operation. Its manifest and witness are deployment-derived with
+the same finalized ELF/VKey family; actual adapter identities were checked.
+The raw witness executed successfully in SP1 and emitted exactly the Rust-core
+288-byte output (3,835,185 cycles). This is execution qualification, not a
+Groth16 proof or a completed refund. The tracked preparation evidence records
+file hashes and public deployment facts without publishing unopened salts.
+
+After generating its new Groth16 proof, run the existing deterministic fixture
+converter with this deployment's manifest/witness. Set the three
+`GATE_E_ENTITLEMENT_*` paths to this run, simulate and broadcast
+`RunGateEEntitlementLocal` to admit and fund it. Then simulate and broadcast
+`script/RefundGateEEntitlementLocal.s.sol:RefundGateEEntitlementLocal`.
+The refund tool requires Funded, zero activated liability, the existing
+operator's signer and bound operation/controller, and the recorded reserve/token.
+It supplies no alternate refund recipient. Successful refund must return exactly
+the full funded amount and leave the allocator operation terminally Cancelled
+with zero liability. No proof bypass or fixture substitution is supported.
+
+Keep this separate deployment stable while proving. Proof, persistent funding,
+refund, and final refund forensic evidence remain outstanding for this run.

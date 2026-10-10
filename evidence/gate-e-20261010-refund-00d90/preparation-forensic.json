@@ -1,0 +1,75 @@
+{
+  "classification": "forensic preparation evidence; proof/refund not yet qualified",
+  "files": {
+    "input.json": {
+      "bytes": 3674,
+      "sha256": "0x56231b11235ce13db5f01fc86f4e17ddcaf4196c1579c9a427e1a9b8223b85a1"
+    },
+    "input.provenance.json": {
+      "bytes": 390,
+      "sha256": "0x38b4722bcf716b5d35e737b26cea0df2ad17dbcb3f82313436c55f23384a21c0"
+    },
+    "manifest.json": {
+      "bytes": 2609,
+      "sha256": "0x15ba14a5d2741355debe7c44e549127ba4cc0825e9e273eae3468bdfdf1bf311"
+    }
+  },
+  "manifest": {
+    "beneficiaryProfile": "smart-account-v1",
+    "chainId": 31337,
+    "configurationEpoch": 0,
+    "configurationRoot": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "contracts": {
+      "admission": "0x2a810409872AfC346F9B5b26571Fd6eC42EA4849",
+      "allocator": "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
+      "assurance": "0xd6e1afe5cA8D00A2EFC01B89997abE2De47fdfAf",
+      "executor": "0xB82008565FdC7e44609fA118A4a681E92581e680",
+      "genesis": "0x3aAde2dCD2Df6a8cAc689EE797591b2913658659",
+      "preparedController": "0xF32D39ff9f6Aa7a7A64d7a4F00a54826Ef791a55",
+      "ratificationController": "0x99dBE4AEa58E518C50a1c04aE9b48C9F6354612f",
+      "registry": "0x457cCf29090fe5A24c19c1bc95F492168C0EaFdb",
+      "reserve": "0x40918Ba7f132E0aCba2CE4de4c4baF9BD2D7D849",
+      "sourceAdapter": "0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82",
+      "token": "0xb9bEECD1A582768711dE1EE7B0A1d582D9d72a6C",
+      "verifier": "0xE3011A37A904aB90C8881a99BD1F6E21401f1522"
+    },
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "economicReserveState": {
+      "availabilityRevision": "0",
+      "availableAmount": "70",
+      "grossBalance": "80",
+      "protectedCapital": "10",
+      "reservedBefore": "0"
+    },
+    "localOnly": {
+      "executionPublicValuesSchema": "0x0808080808080808080808080808080808080808080808080808080808080808",
+      "executionStatementSchema": "0x0707070707070707070707070707070707070707070707070707070707070707",
+      "executionVerifierId": "0x0303030303030303030303030303030303030303030303030303030303030303",
+      "residualRecipient": "0x2222222222222222222222222222222222222222",
+      "sourceVerifierId": "0x0202020202020202020202020202020202020202020202020202020202020202"
+    },
+    "manifestDigest": "sha256:5c1595c82273e756adcd51abfb5a3e3a371a9154c6752484e93533f7c80d64e0",
+    "operationId": "0x0bd445ed4e0e28efcbf2bb0fee5fa69d8dd40712d99408fa910abecbe43cab35",
+    "policyRoot": "0x0909090909090909090909090909090909090909090909090909090909090909",
+    "preparedOperationRoot": "0x2d30488815e29015b1a3bcc29eaefee8136417b3695ac08771509a05096600ce",
+    "programElfSha256": "0x636330de8e7af3485aba50bd3ca4b5e024cc4f977a2bf0f2c005f711e5ffacf8",
+    "programId": "source-bound-entitlement-sp1-program.v1",
+    "programVKey": "0x00d90efa52d17e54670a4248f001e4da443a938f12c55d0d414c125ba68087b9",
+    "publicValuesSchema": "0x876f2aea9124d79f41dbdd389d498430987fa33bbb34408989849c478a7c2bde",
+    "registryRoot": "0xc87a5d80794141fbc59071117fc6fc62d3fa901ee785234026eb159fd89112e8",
+    "reserveBindingRoot": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "reserveStateCommitment": "0xbe55a5233e4e1498624fcceefa04627433c4e6e71ee015f8f2ad03f239ff9f7c",
+    "schema": "prf-evm.gate-e-entitlement-deployment.v1",
+    "sourceStatementSchema": "0x71fc0589dce6888fb7c2da5ddd88275753cf9f9de0aca477f307bd96de8660de"
+  },
+  "next_gate": "new deployment-derived Groth16 proof",
+  "prepared_state": "Prepared",
+  "protected_capital": 10,
+  "reserve_balance": 80,
+  "sp1_execution": {
+    "cycles": 3835185,
+    "execution_seconds": 2.09864407,
+    "public_values_length": 288,
+    "public_values_match_rust": true
+  }
+}

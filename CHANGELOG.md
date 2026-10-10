@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a local funded-entitlement refund runner using the existing operation-bound operator and recorded reserve, with exact refund/debit and terminal-state checks.
+
 - Added a local vector-A settlement script that submits canonical-beneficiary withdrawals across governed Requested/Required mode changes, including a nonblocking invalid optional proof under Requested, and checks exact payouts and terminal accounting.
 
 - Added a fixture-specific local Gate E activation script that realizes the admitted vector-A commitment table and activates the existing funded operation through its bound operator, checking root/count/total, unchanged custody, and outstanding liability.
