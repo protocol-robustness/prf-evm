@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Versioned deployable-artifact bundle 0.4.0 for the current qualified contracts, including generation-bound stale-assurance recovery interfaces; previous bundle identities remain historical releases.
+
 - Added a local funded-entitlement refund runner using the existing operation-bound operator and recorded reserve, with exact refund/debit and terminal-state checks.
 
 - Added a local vector-A settlement script that submits canonical-beneficiary withdrawals across governed Requested/Required mode changes, including a nonblocking invalid optional proof under Requested, and checks exact payouts and terminal accounting.
