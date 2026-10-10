@@ -106,3 +106,43 @@ and claim identity before transfer. Amount/count/liability counters are checked
 against the admitted totals, and the operation closes only when both the total
 and count are fully discharged. There is no expiry, sweep, or post-activation
 cancellation.
+
+
+### Persistent local successor funding
+
+`script/RunGateEEntitlementLocal.s.sol:RunGateEEntitlementLocal` submits the
+real deployment-derived proof on chain 31337. Set `PRIVATE_KEY`,
+`GATE_E_ENTITLEMENT_MANIFEST`, `GATE_E_ENTITLEMENT_INPUT`, and
+`GATE_E_ENTITLEMENT_FIXTURE`. Grant Foundry read access to those files in a
+local `foundry.toml` configuration. Simulate first with:
+
+```sh
+forge script script/RunGateEEntitlementLocal.s.sol:RunGateEEntitlementLocal \
+  --config-path /tmp/foundry.toml --root /home/user/Code/prf-evm \
+  --rpc-url http://127.0.0.1:8545
+```
+
+After successful simulation, use the same command with `--broadcast`.
+The signer must be the prepared controller's existing governance identity.
+The script deploys an immutable local example operator bound to that signer,
+one operation, and its ratification controller. It binds that contract as the
+one-time execution caller. It exposes only funding, representation activation,
+and refund for the bound operation, with operator authorization on each call.
+There is no arbitrary call forwarding or authority replacement. This example
+authority is restricted to chain 31337; it is not a production dispatcher.
+
+The funding script is a first-run tool and rejects an already-bound execution
+caller. Transactions are separate: operator deployment/binding, admission,
+assurance, registration, and funding. A later failed transaction does not undo
+earlier successful transactions. Retain the broadcast record and resume via
+the recorded operator and existing contracts after inspecting state; do not
+redeploy or try to rebind. The controller's funding transaction itself remains
+atomic.
+
+On 2026-10-10 the deployment-derived `gate-e-20261010-current-00d90` proof
+was submitted persistently to the existing Anvil instance. Execution caller:
+`0x18E317A7D70d8fBf8e6E893616b52390EbBdb629`. Readback confirmed prepared
+state `Ratified`, allocator state `Funded`, reserve custody 10, allocator
+custody 70, total reserved 0, and outstanding liability 0. Activation and
+withdrawal have not yet been submitted persistently for this operation.
+This is separate from the four successful fork integration tests.
