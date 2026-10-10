@@ -124,3 +124,56 @@ These suites overlap; their counts must not be added as a distinct-test total.
 The local lifecycle integration gate is closed for the demonstrated scenarios.
 Bounded production use and the master NOW completion gate remain open until
 these acceptance gaps are resolved or explicitly bounded with supporting tests.
+
+
+## Formatting finding disposition
+
+A read-only rerun of `bb fmt:check` in the core `agent-c` workspace completed
+with exit code 1 and `24 file(s) formatted incorrectly`. Thus the earlier
+backstop's one failed gate means 24 formatting findings, not one malformed
+file. The formatter proposed whitespace/indentation changes in the research
+infrastructure and its tests, plus the benchmark manifest smoke test. No
+NOW entitlement derivation file was listed. The core working copy was clean
+before and after the check; no Clojure source was edited or autoformatted.
+
+Sample ownership/history checks found:
+
+- `derived_coordinate.clj`: change `klxmwwqztzrk`, “Add rooted coordinate
+  derivations and researcher evidence attribution”.
+- `all_manifest_smoke_test.clj`: change `uztnupuyrmmn`, “Implemented the narrow
+  diagnostic using the existing pull dispatcher—no new scheduler.”
+
+Disposition: a separate core/research formatting cleanup. This is not a
+Solidity local-qualification regression and does not require regenerating
+ELF/VKey, witnesses or proofs. It remains unresolved for repository-wide green
+validation. Do not rewrite other workspaces or silently apply a broad formatter
+as part of the protected-capital change.
+
+Exact affected-file inventory:
+
+- `src/resolver_sim/research/derived_coordinate.clj`
+- `src/resolver_sim/research/runner_transport.clj`
+- `src/resolver_sim/research/accounting_proof_statement.clj`
+- `src/resolver_sim/research/evidence_attribution.clj`
+- `src/resolver_sim/research/accounting_implementation_comparison.clj`
+- `src/resolver_sim/research/execution_environment.clj`
+- `src/resolver_sim/research/native_accounting_batch.clj`
+- `src/resolver_sim/research/participant_assurance.clj`
+- `src/resolver_sim/research/runner_forensics.clj`
+- `src/resolver_sim/research/observed_execution_work.clj`
+- `src/resolver_sim/research/accounting_arithmetic_sp1_host.clj`
+- `src/resolver_sim/research/native_accounting_work.clj`
+- `src/resolver_sim/research/independent_accounting_impl.clj`
+- `test/resolver_sim/benchmark/all_manifest_smoke_test.clj`
+- `test/resolver_sim/research/remote_runner_fixture.clj`
+- `test/resolver_sim/research/runner_load_boundary_test.clj`
+- `test/resolver_sim/research/native_accounting_batch_test.clj`
+- `test/resolver_sim/research/accounting_proof_statement_test.clj`
+- `test/resolver_sim/research/native_accounting_performance.clj`
+- `test/resolver_sim/research/runner_transport_test.clj`
+- `test/resolver_sim/research/derived_coordinate_test.clj`
+- `test/resolver_sim/research/native_accounting_process_test.clj`
+- `test/resolver_sim/research/native_accounting_work_test.clj`
+- `test/resolver_sim/research/accounting_arithmetic_sp1_host_test.clj`
+
+Formatter output SHA-256 (forensic diagnostic): `f95bf5b5d8c6da5a927cfd68f3911c6cdd42e939a5b69fb20653bedcb15d1476`.
