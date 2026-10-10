@@ -26,6 +26,10 @@ contract V2RatificationReserveMock is IOnchainShortfallReserveV2 {
         return _allocatorIdentity;
     }
 
+    function currentCommitment(bytes32) external view returns (bytes32) {
+        return expectedCommitment;
+    }
+
     function configure(bytes32 commitment_, bool shouldRevert_, uint256 amount_, uint64 revision_) external {
         expectedCommitment = commitment_;
         shouldRevert = shouldRevert_;

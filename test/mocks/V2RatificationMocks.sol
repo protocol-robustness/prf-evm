@@ -15,17 +15,42 @@ contract V2RatificationAssuranceMock is ISourceBoundProRataAssuranceV2 {
     bool public shouldRevert;
     mapping(bytes32 => bool) public consumed;
 
-    function configure(RatificationPayload calldata payload_) external { payload = payload_; }
-    function setShouldRevert(bool value) external { shouldRevert = value; }
+    function configure(RatificationPayload calldata payload_) external {
+        payload = payload_;
+    }
+
+    function setShouldRevert(bool value) external {
+        shouldRevert = value;
+    }
 
     function consumeForRatification(bytes32 operationId, bytes32 preparedRoot, bytes32 commitment)
-        external returns (RatificationPayload memory result)
+        external
+        returns (RatificationPayload memory result)
     {
         if (shouldRevert) revert("ASSURANCE_REVERT");
         if (consumed[payload.receiptId]) revert("ASSURANCE_REPLAY");
-        if (payload.operationId != operationId || payload.preparedOperationRoot != preparedRoot || payload.reserveStateCommitment != commitment) revert("ASSURANCE_MISMATCH");
+        if (
+            payload.operationId != operationId || payload.preparedOperationRoot != preparedRoot
+                || payload.reserveStateCommitment != commitment
+        ) revert("ASSURANCE_MISMATCH");
         consumed[payload.receiptId] = true;
         result = payload;
+    }
+
+    function replaceStaleAssurance(bytes32, bytes32, bytes32, uint64, bytes32, bytes calldata, bytes32)
+        external
+        pure
+        returns (bytes32, bytes32, uint64, uint64)
+    {
+        revert("NOT_IMPLEMENTED");
+    }
+
+    function assuranceCommitment(bytes32) external pure returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function assuranceCommitmentFor(bytes32, bytes32, bytes32, uint64) external pure returns (bytes32) {
+        return bytes32(0);
     }
 }
 
@@ -71,10 +96,19 @@ contract V2RatificationAllocatorMock is IShortfallAllocatorV2 {
     function setMalformedFundState(bool value) external {
         malformedFundState = value;
     }
-    function setReentryTarget(address target) external { reentryTarget = target; }
 
-    function create(bytes32 operationId, bytes32 allocationBindingRoot, bytes32 realizedStatementRoot,
-        IERC20 token, uint256 amount, address residualRecipient) external {
+    function setReentryTarget(address target) external {
+        reentryTarget = target;
+    }
+
+    function create(
+        bytes32 operationId,
+        bytes32 allocationBindingRoot,
+        bytes32 realizedStatementRoot,
+        IERC20 token,
+        uint256 amount,
+        address residualRecipient
+    ) external {
         if (revertCreate) revert("ALLOCATOR_CREATE_REVERT");
         if (reentryTarget != address(0)) IV2ReentryTarget(reentryTarget).reenter();
         if (address(reserveTarget) != address(0)) {
@@ -108,18 +142,26 @@ contract V2RatificationAllocatorMock is IShortfallAllocatorV2 {
         Operation storage operation_ = _operations[operationId];
         if (operation_.state != State.Created) revert("ALLOCATOR_BAD_STATE");
         if (address(operation_.token) != address(1)) {
-            if (!operation_.token.transferFrom(msg.sender, address(this), operation_.amount)) revert("ALLOCATOR_TRANSFER_REVERT");
+            if (!operation_.token.transferFrom(msg.sender, address(this), operation_.amount)) {
+                revert("ALLOCATOR_TRANSFER_REVERT");
+            }
         }
         operation_.state = malformedFundState ? State.Created : State.Funded;
     }
 
-    function operation(bytes32 operationId) external view returns (Operation memory) { return _operations[operationId]; }
+    function operation(bytes32 operationId) external view returns (Operation memory) {
+        return _operations[operationId];
+    }
 }
 
 contract V2ReentrantCallerMock is IV2ReentryTarget {
     address public target;
     bool public attempted;
-    function setTarget(address target_) external { target = target_; }
+
+    function setTarget(address target_) external {
+        target = target_;
+    }
+
     function reenter() external {
         attempted = true;
         if (target != address(0)) target.call(abi.encodeWithSignature("ratifyAndFund(uint256)", 70));

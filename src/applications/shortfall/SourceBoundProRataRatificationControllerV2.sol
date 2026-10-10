@@ -43,6 +43,14 @@ contract SourceBoundProRataRatificationControllerV2 {
     event RatificationStarted(bytes32 indexed operationId, bytes32 indexed commitment);
     event RatificationFunded(bytes32 indexed operationId, uint256 amount, uint64 revision);
     event OperationCancelledAndRefunded(bytes32 indexed operationId);
+    event StaleSourceAssuranceReplaced(
+        bytes32 indexed operationId,
+        bytes32 indexed oldAssuranceCommitment,
+        bytes32 indexed newAssuranceCommitment,
+        uint64 oldGeneration,
+        uint64 newGeneration,
+        address authorizingPrincipal
+    );
 
     constructor(
         SourceBoundProRataControllerV2 preparedController_,
@@ -138,5 +146,44 @@ contract SourceBoundProRataRatificationControllerV2 {
         result[operationId] = funded;
         state[operationId] = State.Funded;
         emit RatificationFunded(operationId, funded.fundedAmount, funded.successorAvailabilityRevision);
+    }
+
+    /// @notice Replaces an admitted assurance only after its reserve snapshot becomes stale.
+    function replaceStaleAssurance(
+        bytes32 operationId,
+        bytes32 expectedOldAssuranceCommitment,
+        bytes32 expectedReplacementAssuranceCommitment,
+        uint64 expectedGeneration,
+        bytes32 replacementReceiptId,
+        bytes calldata replacementPublicValues
+    ) external {
+        if (!executionCallerBound || msg.sender != executionCaller) {
+            revert OnlyExecutionCaller(msg.sender);
+        }
+        if (state[operationId] != State.Prepared) revert InvalidState(state[operationId]);
+        if (preparedController.state(operationId) != SourceBoundProRataControllerV2.State.Prepared) {
+            revert InvalidPreparedOperation(preparedController.state(operationId));
+        }
+        bytes32 preparedRoot = preparedController.preparedOperationRoot(operationId);
+        if (
+            preparedController.preparedChainId(operationId) != block.chainid
+                || preparedController.preparedReserve(operationId) != address(reserve)
+                || preparedController.preparedToken(operationId) != address(reserve.token())
+                || preparedController.preparedAllocator(operationId) != address(reserve.allocator())
+                || preparedController.ratificationController() != address(this)
+        ) revert PreparedContextMismatch();
+        bytes32 liveCommitment = reserve.currentCommitment(preparedRoot);
+        (bytes32 oldCommitment, bytes32 newCommitment, uint64 oldGeneration, uint64 newGeneration) = assurance.replaceStaleAssurance(
+            operationId,
+            expectedOldAssuranceCommitment,
+            expectedReplacementAssuranceCommitment,
+            expectedGeneration,
+            replacementReceiptId,
+            replacementPublicValues,
+            liveCommitment
+        );
+        emit StaleSourceAssuranceReplaced(
+            operationId, oldCommitment, newCommitment, oldGeneration, newGeneration, msg.sender
+        );
     }
 }

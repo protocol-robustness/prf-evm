@@ -428,6 +428,10 @@ contract OnchainShortfallReserveV2 is IOnchainShortfallReserveV2, IOnchainShortf
         );
     }
 
+    function currentCommitment(bytes32 preparedOperationRoot) external view override returns (bytes32) {
+        return economicState(preparedOperationRoot).commitment;
+    }
+
     function authoritativeObservation(
         bytes32 preparedOperationRoot,
         bytes32 reserveStateCommitment,

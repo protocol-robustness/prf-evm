@@ -7,6 +7,9 @@ import {IShortfallAllocatorV2} from "./IShortfallAllocatorV2.sol";
 interface IOnchainShortfallReserveV2 {
     function token() external view returns (IERC20);
     function allocator() external view returns (IShortfallAllocatorV2);
+    /// @notice Current complete reserve commitment for a prepared operation.
+    /// @dev Includes balance-derived availability and the reserve revision.
+    function currentCommitment(bytes32 preparedOperationRoot) external view returns (bytes32);
 
     struct RatificationRequest {
         bytes32 operationId;

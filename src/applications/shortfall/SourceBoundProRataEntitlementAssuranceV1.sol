@@ -11,6 +11,7 @@ import {SourceBoundProRataControllerV2} from "./SourceBoundProRataControllerV2.s
 /// @dev Additive successor to SourceBoundProRataAssuranceV2. It validates and
 ///      freezes the nine-word entitlement proof tuple; it does not move capital.
 contract SourceBoundProRataEntitlementAssuranceV1 {
+    bytes32 private constant ASSURANCE_COMMITMENT_DOMAIN = keccak256("prf.source-bound-entitlement-assurance.v1");
     enum State {
         None,
         Prepared,
@@ -34,6 +35,7 @@ contract SourceBoundProRataEntitlementAssuranceV1 {
         bytes32 programElfSha256;
         bytes32 statementSchema;
         bytes32 publicValuesSchema;
+        uint64 generation;
         State state;
     }
 
@@ -76,6 +78,10 @@ contract SourceBoundProRataEntitlementAssuranceV1 {
     error OperationMismatch();
     error StatementMismatch();
     error AssuranceAlreadyConsumed(bytes32 receiptId);
+    error AssuranceNotStale();
+    error AssuranceCommitmentMismatch();
+    error GenerationMismatch();
+    error ReplacementReserveMismatch();
 
     event RatificationControllerBound(address indexed controller);
     event EntitlementAssurancePrepared(
@@ -120,12 +126,93 @@ contract SourceBoundProRataEntitlementAssuranceV1 {
         returns (PreparedEntitlementAssurance memory prepared)
     {
         if (!controllerBindingFinalized) revert ControllerNotBound();
+        if (_prepared[operationId].state != State.None) revert AssuranceAlreadyPrepared(operationId);
+        if (operationForReceipt[receiptId] != bytes32(0)) revert ReceiptAlreadyPrepared(receiptId);
+
+        prepared = _validateSourceAssurance(operationId, receiptId, publicValues);
+        prepared.generation = 1;
+        _prepared[operationId] = prepared;
+        operationForReceipt[receiptId] = operationId;
+        emit EntitlementAssurancePrepared(
+            operationId,
+            receiptId,
+            prepared.evmEntitlementTableRoot,
+            prepared.entitlementCount,
+            prepared.entitlementTotal
+        );
+    }
+
+    /// @notice Replaces only a stale, unconsumed assurance for a still-prepared operation.
+    /// @dev The bound ratification controller supplies the current full reserve commitment.
+    function replaceStaleAssurance(
+        bytes32 operationId,
+        bytes32 expectedOldAssuranceCommitment,
+        bytes32 expectedReplacementAssuranceCommitment,
+        uint64 expectedGeneration,
+        bytes32 replacementReceiptId,
+        bytes calldata replacementPublicValues,
+        bytes32 liveReserveCommitment
+    ) external returns (bytes32 oldCommitment, bytes32 newCommitment, uint64 oldGeneration, uint64 newGeneration) {
+        if (!controllerBindingFinalized) revert ControllerNotBound();
+        if (msg.sender != ratificationController) revert OnlyRatificationController(msg.sender);
+        PreparedEntitlementAssurance storage old = _prepared[operationId];
+        if (
+            old.state != State.Prepared
+                || preparedController.state(operationId) != SourceBoundProRataControllerV2.State.Prepared
+                || consumedAssurance[old.receiptId]
+        ) revert InvalidPreparedOperation();
+        oldGeneration = old.generation;
+        if (expectedGeneration != oldGeneration) revert GenerationMismatch();
+        oldCommitment = _assuranceCommitment(operationId, old.receiptId, old.publicValuesHash, oldGeneration);
+        if (oldCommitment != expectedOldAssuranceCommitment) revert AssuranceCommitmentMismatch();
+        if (old.reserveStateCommitment == liveReserveCommitment) revert AssuranceNotStale();
+        if (operationForReceipt[replacementReceiptId] != bytes32(0)) {
+            revert ReceiptAlreadyPrepared(replacementReceiptId);
+        }
+
+        PreparedEntitlementAssurance memory replacement =
+            _validateSourceAssurance(operationId, replacementReceiptId, replacementPublicValues);
+        if (replacement.reserveStateCommitment != liveReserveCommitment) revert ReplacementReserveMismatch();
+        newGeneration = oldGeneration + 1;
+        replacement.generation = newGeneration;
+        newCommitment = _assuranceCommitment(
+            operationId, replacement.receiptId, replacement.publicValuesHash, replacement.generation
+        );
+        if (newCommitment != expectedReplacementAssuranceCommitment) revert AssuranceCommitmentMismatch();
+        _prepared[operationId] = replacement;
+        operationForReceipt[replacementReceiptId] = operationId;
+        emit EntitlementAssurancePrepared(
+            operationId,
+            replacementReceiptId,
+            replacement.evmEntitlementTableRoot,
+            replacement.entitlementCount,
+            replacement.entitlementTotal
+        );
+    }
+
+    function assuranceCommitment(bytes32 operationId) external view returns (bytes32) {
+        PreparedEntitlementAssurance storage prepared = _prepared[operationId];
+        if (prepared.state == State.None) return bytes32(0);
+        return _assuranceCommitment(operationId, prepared.receiptId, prepared.publicValuesHash, prepared.generation);
+    }
+
+    function assuranceCommitmentFor(bytes32 operationId, bytes32 receiptId, bytes32 valuesHash, uint64 generation)
+        external
+        pure
+        returns (bytes32)
+    {
+        return _assuranceCommitment(operationId, receiptId, valuesHash, generation);
+    }
+
+    function _validateSourceAssurance(bytes32 operationId, bytes32 receiptId, bytes calldata publicValues)
+        private
+        view
+        returns (PreparedEntitlementAssurance memory prepared)
+    {
         if (
             preparedController.state(operationId) != SourceBoundProRataControllerV2.State.Prepared
                 || !preparedController.successorEntitlementProfile(operationId)
         ) revert InvalidPreparedOperation();
-        if (_prepared[operationId].state != State.None) revert AssuranceAlreadyPrepared(operationId);
-        if (operationForReceipt[receiptId] != bytes32(0)) revert ReceiptAlreadyPrepared(receiptId);
 
         IPrfStatementAdmission.AdmissionReceipt memory receipt = admission.admissionReceipt(receiptId);
         if (!receipt.exists || receipt.verifierAdapter != address(sourceAdapter)) revert InvalidReceipt();
@@ -174,13 +261,17 @@ contract SourceBoundProRataEntitlementAssuranceV1 {
             programElfSha256: receipt.programElfSha256,
             statementSchema: receipt.statementSchemaVersionHash,
             publicValuesSchema: receipt.publicValuesSchema,
+            generation: 0,
             state: State.Prepared
         });
-        _prepared[operationId] = prepared;
-        operationForReceipt[receiptId] = operationId;
-        emit EntitlementAssurancePrepared(
-            operationId, receiptId, values.evmEntitlementTableRoot, values.entitlementCount, values.entitlementTotal
-        );
+    }
+
+    function _assuranceCommitment(bytes32 operationId, bytes32 receiptId, bytes32 valuesHash, uint64 generation)
+        private
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(ASSURANCE_COMMITMENT_DOMAIN, operationId, receiptId, valuesHash, generation));
     }
 
     function preparedAssurance(bytes32 operationId) external view returns (PreparedEntitlementAssurance memory) {

@@ -194,6 +194,133 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         assertEq(reserve.totalReserved(), 0);
     }
 
+    function test_OnlyBoundExecutionCallerCanReplaceStaleAssurance() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        token.mint(address(this), 1);
+        token.approve(address(reserve), 1);
+        reserve.deposit(1);
+        bytes32 current = reserve.economicState(preparedRoot).commitment;
+        (bytes32 receipt, bytes memory values) = _replacementProof(current, 91);
+
+        bytes32 oldAssurance = assurance.assuranceCommitment(OPERATION);
+        bytes32 nextAssurance = assurance.assuranceCommitmentFor(OPERATION, receipt, keccak256(values), 2);
+        vm.prank(address(0xBAD));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.OnlyExecutionCaller.selector, address(0xBAD)
+            )
+        );
+        ratification.replaceStaleAssurance(OPERATION, oldAssurance, nextAssurance, 1, receipt, values);
+        assertEq(assurance.preparedAssurance(OPERATION).receiptId, RECEIPT);
+    }
+
+    function test_ReplacementRejectsCurrentAssuranceAndInvalidProofWithoutMutation() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        bytes32 oldAssurance = assurance.assuranceCommitment(OPERATION);
+        (bytes32 currentReceipt, bytes memory currentValues) = _replacementProof(reserveCommitment, 90);
+        bytes32 currentReplacementCommitment =
+            assurance.assuranceCommitmentFor(OPERATION, currentReceipt, keccak256(currentValues), 2);
+        vm.expectRevert(SourceBoundProRataEntitlementAssuranceV1.AssuranceNotStale.selector);
+        ratification.replaceStaleAssurance(
+            OPERATION, oldAssurance, currentReplacementCommitment, 1, currentReceipt, currentValues
+        );
+
+        token.mint(address(this), 1);
+        token.approve(address(reserve), 1);
+        reserve.deposit(1);
+        bytes32 live = reserve.economicState(preparedRoot).commitment;
+        (bytes32 validReceipt, bytes memory validValues) = _replacementProof(live, 91);
+        vm.expectRevert(SourceBoundProRataEntitlementAssuranceV1.AssuranceCommitmentMismatch.selector);
+        ratification.replaceStaleAssurance(OPERATION, oldAssurance, bytes32(uint256(1)), 1, validReceipt, validValues);
+
+        (bytes32 invalidReceipt, bytes memory invalidValues) = _replacementProof(live, 91);
+        invalidValues[0] = bytes1(uint8(invalidValues[0]) ^ 1);
+        bytes32 invalidReplacementCommitment =
+            assurance.assuranceCommitmentFor(OPERATION, invalidReceipt, keccak256(invalidValues), 2);
+        vm.expectRevert(SourceBoundProRataEntitlementAssuranceV1.InvalidIdentity.selector);
+        ratification.replaceStaleAssurance(
+            OPERATION, oldAssurance, invalidReplacementCommitment, 1, invalidReceipt, invalidValues
+        );
+
+        SourceBoundProRataEntitlementAssuranceV1.PreparedEntitlementAssurance memory stillOld =
+            assurance.preparedAssurance(OPERATION);
+        assertEq(stillOld.receiptId, RECEIPT);
+        assertEq(stillOld.reserveStateCommitment, reserveCommitment);
+        assertEq(stillOld.generation, 1);
+        assertEq(assurance.assuranceCommitment(OPERATION), oldAssurance);
+    }
+
+    function test_DepositAndRepeatedReserveChangesAllowGenerationBoundRecovery() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+
+        uint64 revisionBeforeDeposit = reserve.availabilityRevision();
+        token.mint(address(this), 1);
+        token.approve(address(reserve), 1);
+        reserve.deposit(1);
+        bytes32 afterDeposit = reserve.economicState(preparedRoot).commitment;
+        assertEq(reserve.availabilityRevision(), revisionBeforeDeposit, "deposit does not bump revision");
+        assertTrue(afterDeposit != reserveCommitment, "full commitment includes changed balance");
+
+        (bytes32 receipt1, bytes memory values1) = _replacementProof(afterDeposit, 91);
+        bytes32 oldCommitment = assurance.assuranceCommitment(OPERATION);
+        ratification.replaceStaleAssurance(
+            OPERATION,
+            oldCommitment,
+            assurance.assuranceCommitmentFor(OPERATION, receipt1, keccak256(values1), 2),
+            1,
+            receipt1,
+            values1
+        );
+        assertEq(assurance.preparedAssurance(OPERATION).generation, 2);
+
+        reserve.reserveForOtherObligation(keccak256("recovery-reservation"), 1, block.timestamp + 1 days);
+        bytes32 afterReservation = reserve.economicState(preparedRoot).commitment;
+        (bytes32 receipt2, bytes memory values2) = _replacementProof(afterReservation, 90);
+        bytes32 generation2Commitment = assurance.assuranceCommitment(OPERATION);
+        ratification.replaceStaleAssurance(
+            OPERATION,
+            generation2Commitment,
+            assurance.assuranceCommitmentFor(OPERATION, receipt2, keccak256(values2), 3),
+            2,
+            receipt2,
+            values2
+        );
+        assertEq(assurance.preparedAssurance(OPERATION).generation, 3);
+
+        bytes32 obsoleteReplacementCommitment =
+            assurance.assuranceCommitmentFor(OPERATION, receipt2, keccak256(values2), 3);
+        vm.expectRevert(SourceBoundProRataEntitlementAssuranceV1.GenerationMismatch.selector);
+        ratification.replaceStaleAssurance(
+            OPERATION, generation2Commitment, obsoleteReplacementCommitment, 2, receipt2, values2
+        );
+
+        ratification.ratifyAndFund(OPERATION, afterReservation, RESIDUAL);
+        assertEq(token.balanceOf(address(allocator)), 90);
+        assertEq(token.balanceOf(address(reserve)), 11);
+        assertTrue(assurance.consumedAssurance(receipt2));
+    }
+
+    function test_ReplacementIsUnavailableAfterFundingOrConsumption() public {
+        assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
+        ratification.registerPrepared(OPERATION);
+        ratification.ratifyAndFund(OPERATION, reserveCommitment, RESIDUAL);
+        (bytes32 nextReceipt, bytes memory nextValues) = _replacementProof(reserveCommitment, 90);
+        bytes32 nextCommitment = assurance.assuranceCommitmentFor(OPERATION, nextReceipt, keccak256(nextValues), 2);
+        bytes32 currentAssuranceCommitment = assurance.assuranceCommitment(OPERATION);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataEntitlementRatificationControllerV1.InvalidState.selector,
+                SourceBoundProRataEntitlementRatificationControllerV1.State.Funded
+            )
+        );
+        ratification.replaceStaleAssurance(
+            OPERATION, currentAssuranceCommitment, nextCommitment, 1, nextReceipt, nextValues
+        );
+    }
+
     function test_ActivationRequiresTheAdmittedLogicalRootCountAndTotal() public {
         assurance.prepareSourceAssurance(OPERATION, RECEIPT, _publicValues());
         ratification.registerPrepared(OPERATION);
@@ -374,6 +501,37 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
             uint256(90),
             CLAIM
         );
+    }
+
+    function _replacementProof(bytes32 commitment, uint256 total)
+        private
+        returns (bytes32 receiptId, bytes memory values)
+    {
+        receiptId = keccak256(abi.encode("replacement", commitment, total));
+        values = abi.encode(
+            adapter.PUBLIC_VALUES_SCHEMA(),
+            preparedRoot,
+            commitment,
+            ALLOCATION,
+            adapter.EXPECTED_DESCRIPTOR_ROOT(),
+            TABLE,
+            uint256(2),
+            total,
+            CLAIM
+        );
+        IPrfStatementAdmission.AdmissionReceipt memory receipt;
+        receipt.exists = true;
+        receipt.configurationRoot = keccak256("successor-ratification-config");
+        receipt.configurationEpoch = 7;
+        receipt.verifierId = keccak256("successor-ratification-verifier");
+        receipt.verifierAdapter = address(adapter);
+        receipt.programVKey = adapter.programVKey();
+        receipt.programElfSha256 = adapter.programElfSha256();
+        receipt.statementSchemaVersionHash = adapter.statementSchemaVersion();
+        receipt.publicValuesSchema = adapter.publicValuesSchema();
+        receipt.statementRoot = ALLOCATION;
+        receipt.publicValuesDigest = sha256(values);
+        admission.setReceipt(receiptId, receipt);
     }
 
     function _preparedOperation()

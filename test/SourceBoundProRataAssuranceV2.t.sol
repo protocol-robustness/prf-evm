@@ -212,6 +212,87 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         assertEq(uint8(prepared.state), uint8(SourceBoundProRataAssuranceV2.AssuranceState.Prepared));
     }
 
+    function test_StaleAssuranceCanBeRecoveredOnlyByBoundCallerAndOnlyOncePerGeneration() public {
+        bytes32 stale = keccak256("stale-reserve");
+        bytes32 live1 = keccak256("live-reserve-one");
+        bytes32 live2 = keccak256("live-reserve-two");
+        V2RatificationReserveMock reserve = new V2RatificationReserveMock();
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(0x2222), address(0x3333));
+        reserve.configure(stale, false, 70, 18);
+        _prepareIntegratedAssurance(f, stale);
+
+        bytes32 replacement1 = keccak256("replacement-receipt-one");
+        bytes memory values1 = _registerIntegratedReceipt(f, replacement1, live1);
+        reserve.configure(live1, false, 70, 19);
+        bytes32 oldAssurance = f.assurance.assuranceCommitment(OPERATION);
+        bytes32 replacementCommitment1 =
+            f.assurance.assuranceCommitmentFor(OPERATION, replacement1, keccak256(values1), 2);
+
+        vm.prank(address(0xBAD));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataRatificationControllerV2.OnlyExecutionCaller.selector, address(0xBAD)
+            )
+        );
+        f.ratification.replaceStaleAssurance(OPERATION, oldAssurance, replacementCommitment1, 1, replacement1, values1);
+        assertEq(f.assurance.preparedAssurance(OPERATION).receiptId, f.receiptId);
+
+        f.ratification.replaceStaleAssurance(OPERATION, oldAssurance, replacementCommitment1, 1, replacement1, values1);
+        assertEq(f.assurance.preparedAssurance(OPERATION).generation, 2);
+
+        bytes32 replacement2 = keccak256("replacement-receipt-two");
+        bytes memory values2 = _registerIntegratedReceipt(f, replacement2, live2);
+        reserve.configure(live2, false, 70, 20);
+        bytes32 generation2Commitment = f.assurance.assuranceCommitment(OPERATION);
+        bytes32 replacementCommitment2 =
+            f.assurance.assuranceCommitmentFor(OPERATION, replacement2, keccak256(values2), 3);
+        f.ratification
+            .replaceStaleAssurance(OPERATION, generation2Commitment, replacementCommitment2, 2, replacement2, values2);
+        assertEq(f.assurance.preparedAssurance(OPERATION).generation, 3);
+
+        vm.expectRevert(SourceBoundProRataAssuranceV2.GenerationMismatch.selector);
+        f.ratification
+            .replaceStaleAssurance(OPERATION, generation2Commitment, replacementCommitment2, 2, replacement2, values2);
+        f.ratification.ratifyAndFund(OPERATION, live2, bytes32(uint256(4)), 1, address(0x2222));
+        assertEq(uint8(f.ratification.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Funded));
+        assertTrue(f.assurance.consumedAssurance(replacement2));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SourceBoundProRataRatificationControllerV2.InvalidState.selector,
+                SourceBoundProRataRatificationControllerV2.State.Funded
+            )
+        );
+        f.ratification.replaceStaleAssurance(OPERATION, bytes32(0), bytes32(0), 3, keccak256("late"), "");
+    }
+
+    function test_CurrentOrInvalidReplacementPreservesOriginalAssurance() public {
+        bytes32 stale = keccak256("stale-reserve-current-check");
+        bytes32 live = keccak256("live-reserve-current-check");
+        V2RatificationReserveMock reserve = new V2RatificationReserveMock();
+        reserve.configureDeploymentIdentity(IERC20(address(0x2222)), IShortfallAllocatorV2(address(0x3333)));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(0x2222), address(0x3333));
+        reserve.configure(stale, false, 70, 18);
+        _prepareIntegratedAssurance(f, stale);
+        bytes32 replacement = keccak256("replacement-current-check");
+        bytes memory values = _registerIntegratedReceipt(f, replacement, stale);
+        bytes32 oldAssurance = f.assurance.assuranceCommitment(OPERATION);
+        bytes32 expectedReplacement = f.assurance.assuranceCommitmentFor(OPERATION, replacement, keccak256(values), 2);
+
+        vm.expectRevert(SourceBoundProRataAssuranceV2.AssuranceNotStale.selector);
+        f.ratification.replaceStaleAssurance(OPERATION, oldAssurance, expectedReplacement, 1, replacement, values);
+
+        reserve.configure(live, false, 70, 19);
+        values[0] = bytes1(uint8(values[0]) ^ 1);
+        bytes32 invalidExpectedReplacement =
+            f.assurance.assuranceCommitmentFor(OPERATION, replacement, keccak256(values), 2);
+        vm.expectRevert(SourceBoundProRataAssuranceV2.InvalidIdentity.selector);
+        f.ratification
+            .replaceStaleAssurance(OPERATION, oldAssurance, invalidExpectedReplacement, 1, replacement, values);
+        assertEq(f.assurance.preparedAssurance(OPERATION).receiptId, f.receiptId);
+        assertEq(f.assurance.assuranceCommitment(OPERATION), oldAssurance);
+    }
+
     function test_RealReserveAndV2AllocatorCompleteAtomicFunding() public {
         AssuranceV2TokenMock token = new AssuranceV2TokenMock();
         ProductionProRataAllocatorV2 allocator =
@@ -234,6 +315,42 @@ contract SourceBoundProRataAssuranceV2Test is Test {
         assertEq(operation.amount, 90);
         assertEq(token.balanceOf(address(reserve)), 10);
         assertEq(token.balanceOf(address(allocator)), 90);
+        assertEq(token.allowance(address(reserve), address(allocator)), 0);
+    }
+
+    function test_StaleRealReserveRatificationRollsBackAssuranceAndCapital() public {
+        AssuranceV2TokenMock token = new AssuranceV2TokenMock();
+        ProductionProRataAllocatorV2 allocator =
+            new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
+        OnchainShortfallReserveV2 reserve = new OnchainShortfallReserveV2(token, address(this), 10, allocator);
+        allocator.bindFundingAuthority(address(reserve));
+        IntegratedFixture memory f = _integratedFixture(OPERATION, address(reserve), address(token), address(allocator));
+        reserve.bindRatificationAuthority(address(f.ratification));
+
+        token.mint(address(this), 101);
+        token.approve(address(reserve), 100);
+        reserve.deposit(100);
+        bytes32 stale = reserve.economicState(f.preparedRoot).commitment;
+        _prepareIntegratedAssurance(f, stale);
+        token.approve(address(reserve), 1);
+        reserve.deposit(1);
+        bytes32 live = reserve.economicState(f.preparedRoot).commitment;
+
+        vm.expectRevert(abi.encodeWithSelector(OnchainShortfallReserveV2.CommitmentMismatch.selector, stale, live));
+        f.ratification.ratifyAndFund(OPERATION, stale, bytes32(uint256(4)), 1, address(0x2222));
+
+        assertEq(
+            uint8(f.ratification.state(OPERATION)), uint8(SourceBoundProRataRatificationControllerV2.State.Prepared)
+        );
+        assertEq(uint8(f.prepared.state(OPERATION)), uint8(SourceBoundProRataControllerV2.State.Prepared));
+        assertEq(
+            uint8(f.assurance.preparedAssurance(OPERATION).state),
+            uint8(SourceBoundProRataAssuranceV2.AssuranceState.Prepared)
+        );
+        assertFalse(f.assurance.consumedAssurance(f.receiptId));
+        assertEq(token.balanceOf(address(reserve)), 101);
+        assertEq(token.balanceOf(address(allocator)), 0);
+        assertEq(reserve.totalReserved(), 0);
         assertEq(token.allowance(address(reserve), address(allocator)), 0);
     }
 
@@ -263,11 +380,19 @@ contract SourceBoundProRataAssuranceV2Test is Test {
     }
 
     function _prepareIntegratedAssurance(IntegratedFixture memory f, bytes32 reserveCommitment) internal {
-        bytes memory values = abi.encode(
+        bytes memory values = _registerIntegratedReceipt(f, f.receiptId, reserveCommitment);
+        f.assurance.prepareSourceAssurance(f.operationId, f.receiptId, values);
+    }
+
+    function _registerIntegratedReceipt(IntegratedFixture memory f, bytes32 receiptId, bytes32 reserveCommitment)
+        internal
+        returns (bytes memory values)
+    {
+        values = abi.encode(
             adapter.PUBLIC_VALUES_DOMAIN(), f.preparedRoot, reserveCommitment, ALLOCATION, REALIZED, f.operationId
         );
         admission.setReceipt(
-            f.receiptId,
+            receiptId,
             IPrfStatementAdmission.AdmissionReceipt({
                 exists: true,
                 protocolGenesisRoot: bytes32(0),
@@ -285,7 +410,6 @@ contract SourceBoundProRataAssuranceV2Test is Test {
                 publicValuesDigest: sha256(values)
             })
         );
-        f.assurance.prepareSourceAssurance(f.operationId, f.receiptId, values);
     }
 
     function test_BindingIsPermanentAndPreparationRejectsInvalidDigest() public {

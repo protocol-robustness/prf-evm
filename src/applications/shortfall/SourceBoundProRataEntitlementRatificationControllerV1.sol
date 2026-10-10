@@ -41,6 +41,14 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
     event EntitlementRatificationFunded(bytes32 indexed operationId, bytes32 indexed receiptId, uint256 amount);
     event EntitlementOperationActivated(bytes32 indexed operationId, address indexed representation);
     event EntitlementOperationCancelledAndRefunded(bytes32 indexed operationId);
+    event StaleEntitlementAssuranceReplaced(
+        bytes32 indexed operationId,
+        bytes32 indexed oldAssuranceCommitment,
+        bytes32 indexed newAssuranceCommitment,
+        uint64 oldGeneration,
+        uint64 newGeneration,
+        address authorizingPrincipal
+    );
 
     constructor(
         SourceBoundProRataControllerV2 preparedController_,
@@ -127,6 +135,45 @@ contract SourceBoundProRataEntitlementRatificationControllerV1 {
         result[operationId] = funded;
         state[operationId] = State.Funded;
         emit EntitlementRatificationFunded(operationId, payload.receiptId, funded.fundedAmount);
+    }
+
+    /// @notice Replaces an admitted assurance only after its reserve snapshot becomes stale.
+    function replaceStaleAssurance(
+        bytes32 operationId,
+        bytes32 expectedOldAssuranceCommitment,
+        bytes32 expectedReplacementAssuranceCommitment,
+        uint64 expectedGeneration,
+        bytes32 replacementReceiptId,
+        bytes calldata replacementPublicValues
+    ) external {
+        if (!executionCallerBound || msg.sender != executionCaller) {
+            revert OnlyExecutionCaller(msg.sender);
+        }
+        if (state[operationId] != State.Prepared) revert InvalidState(state[operationId]);
+        if (preparedController.state(operationId) != SourceBoundProRataControllerV2.State.Prepared) {
+            revert InvalidPreparedOperation(preparedController.state(operationId));
+        }
+        bytes32 preparedRoot = preparedController.preparedOperationRoot(operationId);
+        if (
+            preparedController.preparedChainId(operationId) != block.chainid
+                || preparedController.ratificationController() != address(this)
+                || preparedController.preparedReserve(operationId) != address(reserve)
+                || preparedController.preparedToken(operationId) != address(reserve.token())
+                || preparedController.preparedAllocator(operationId) != address(reserve.allocator())
+        ) revert PreparedContextMismatch();
+        bytes32 liveCommitment = reserve.currentCommitment(preparedRoot);
+        (bytes32 oldCommitment, bytes32 newCommitment, uint64 oldGeneration, uint64 newGeneration) = assurance.replaceStaleAssurance(
+            operationId,
+            expectedOldAssuranceCommitment,
+            expectedReplacementAssuranceCommitment,
+            expectedGeneration,
+            replacementReceiptId,
+            replacementPublicValues,
+            liveCommitment
+        );
+        emit StaleEntitlementAssuranceReplaced(
+            operationId, oldCommitment, newCommitment, oldGeneration, newGeneration, msg.sender
+        );
     }
 
     /// @notice Returns funded capital before activation; activated liabilities cannot be cancelled.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added execution-caller-authorized recovery for stale, unconsumed V1/V2 source assurances. Replacement requires a fresh admitted proof bound to the prepared operation and current full reserve commitment, and records generation-linked provenance; ratification freshness and funding checks are unchanged.
+
 - Added `CommittedImmutableEntitlementRepresentationV1`, a bytecode-backed immutable-shard implementation of the existing logical entitlement table root; physical sharding preserves the same root/count/total and is exported in deployable bundle 0.3.0.
 
 - Published deployable-artifact bundle version 0.2.0 with the additive source-bound entitlement verifier, assurance, ratification, and reference table artifacts; refreshed the V2 allocator artifact for its current entitlement lifecycle ABI.
