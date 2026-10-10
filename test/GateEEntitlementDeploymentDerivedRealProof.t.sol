@@ -124,10 +124,17 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
             abi.decode(vm.parseJson(manifest, ".contracts.sourceAdapter"), (address))
         );
 
-        // This test harness is the local proof execution caller; deployments bind
-        // this route to the production application dispatcher instead.
-        vm.prank(prepared.governance());
-        ratification.bindExecutionCaller(address(this));
+        // Fresh harness deployments bind this test as the execution caller. A
+        // deployment-derived Gate E manifest may already have bound its production
+        // dispatcher, in which case exercise the same authorized caller identity.
+        address executionCaller = ratification.executionCaller();
+        if (!ratification.executionCallerBound()) {
+            vm.prank(prepared.governance());
+            ratification.bindExecutionCaller(address(this));
+            executionCaller = address(this);
+        } else {
+            assertTrue(executionCaller.code.length != 0, "bound execution caller has code");
+        }
 
         string memory fixture = vm.readFile(vm.envString("GATE_E_ENTITLEMENT_FIXTURE"));
         assertEq(abi.decode(vm.parseJson(fixture, ".proof_system"), (string)), "groth16", "proof type");
@@ -211,6 +218,7 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
         assurance.prepareSourceAssurance(operationId, receiptId, publicValues);
         ratification.registerPrepared(operationId);
         address residualRecipient = abi.decode(vm.parseJson(manifest, ".localOnly.residualRecipient"), (address));
+        vm.prank(executionCaller);
         ratification.ratifyAndFund(operationId, reserveCommitment, residualRecipient);
 
         IShortfallEntitlementAllocatorV1.EntitlementOperation memory funded =
@@ -234,6 +242,7 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
             CommittedImmutableEntitlementRepresentationV1 representation =
                 new CommittedImmutableEntitlementRepresentationV1(commitments, values.entitlementTotal, 2);
             assertEq(representation.logicalRoot(), values.evmEntitlementTableRoot, "fixture-derived logical table");
+            vm.prank(executionCaller);
             ratification.activateEntitlement(operationId, IEntitlementRepresentationV1(address(representation)));
             IShortfallEntitlementAllocatorV1.EntitlementOperation memory activated =
                 IShortfallEntitlementAllocatorV1(address(allocator)).entitlementOperation(operationId);
@@ -312,6 +321,7 @@ contract GateEEntitlementDeploymentDerivedRealProofTest is Test {
         } else {
             uint256 reserveBeforeRefund = IERC20(tokenAddress).balanceOf(address(reserve));
             uint256 allocatorBeforeRefund = IERC20(tokenAddress).balanceOf(address(allocator));
+            vm.prank(executionCaller);
             ratification.cancelAndRefundEntitlement(operationId);
             IShortfallEntitlementAllocatorV1.EntitlementOperation memory refunded =
                 IShortfallEntitlementAllocatorV1(address(allocator)).entitlementOperation(operationId);
