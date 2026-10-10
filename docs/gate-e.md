@@ -203,3 +203,39 @@ The stored allocation claim root remained unchanged. Public broadcast receipts,
 `activation-forensic.json`, and the companion activation DAG retain this
 transition and link it to the funding evidence. Withdrawals and closure remain
 subsequent persistent steps.
+
+
+### Persistent local settlement and closure
+
+`script/WithdrawGateEEntitlementLocal.s.sol:WithdrawGateEEntitlementLocal`
+consumes the same manifest, witness and fixture environment as the funding and
+activation scripts. It requires an untouched Activated vector-A operation and
+the existing configuration authority's governor key. Simulate before broadcasting.
+This local fixture tool validates each opening against the activated immutable
+representation and the derived claim tree against the sole admitted claim root.
+It sends funds only to canonical beneficiaries; the submitting signer does not
+become the beneficiary.
+
+It executes three withdrawals: 35 under Requested without a claim proof; 21
+under Required with a valid claim proof and caller minimum Required; 14 under
+Requested with an invalid supplied optional claim path. Mode changes use existing
+authority decision authorization and configuration application, not an allocator
+owner setter. No allocation identity changes during those transitions. These
+are separate transactions: a later failure preserves prior successful withdrawals
+and configuration changes. The first-run script rejects a partially claimed or
+closed operation; use recorded state and remaining canonical openings to resume.
+
+The existing persistent local operation completed settlement in blocks 43–46
+on 2026-10-10. Claimed amount/count reached 70/3 and state became Closed.
+Outstanding liability and allocator custody became zero; reserve custody remained
+10. Beneficiaries received exactly 35, 21, and 14. Three original withdrawal
+calldata replays rejected in read-only eth_call checks after closure. Those are
+failed-attempt observations, not mined transactions or successful state transitions.
+
+The public broadcast, `withdrawal-forensic.json`, and
+`withdrawal-execution-dag.json` retain transactions, governance/proof observations,
+payout deltas, stable operation roots, closure accounting and rejected replays,
+and link back to activation evidence. DAG node completion means evidence capture
+completed; rejected-attempt nodes do not represent successful economic execution.
+The refund branch requires a separate funded operation and deployment-derived proof
+because this Activated/Closed operation cannot ordinarily be cancelled.

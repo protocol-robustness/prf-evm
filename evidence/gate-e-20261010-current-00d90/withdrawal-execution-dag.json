@@ -1,0 +1,308 @@
+{
+  "dag\/schema-version": "execution-dag.v1",
+  "scenario\/id": "activated-entitlement-to-closure",
+  "dag\/edge-count": 13,
+  "dag\/edges": [
+    {
+      "edge\/from": "activation-evidence",
+      "edge\/to": "0x997ec308933d61b489bae2dd577e30b090ec643d10b3fa78db3ab49064a1fa6c",
+      "edge\/type": "execution-order",
+      "edge\/hash": "7ac7fee753734b99894212368c35decf09c2f1ed7f2c34c94deae7b888969c64"
+    },
+    {
+      "edge\/from": "0x997ec308933d61b489bae2dd577e30b090ec643d10b3fa78db3ab49064a1fa6c",
+      "edge\/to": "0xfce9eea45b19b5932d2a480f1f0e913d83edf86f95440475419b1fbe971cb822",
+      "edge\/type": "execution-order",
+      "edge\/hash": "38d083d417f48c407d0952f73a7cdadc3ad336c3b14a067ad800937f598347de"
+    },
+    {
+      "edge\/from": "0xfce9eea45b19b5932d2a480f1f0e913d83edf86f95440475419b1fbe971cb822",
+      "edge\/to": "0xe6573f0ed9c9ccd67f4e72ad41b7e16d205b0c035304b3110387e78d04e2db19",
+      "edge\/type": "execution-order",
+      "edge\/hash": "35fd9337b8d6973074db2097b712a1aeb6f5ce5897deb2c0c43303d80ac11589"
+    },
+    {
+      "edge\/from": "0xe6573f0ed9c9ccd67f4e72ad41b7e16d205b0c035304b3110387e78d04e2db19",
+      "edge\/to": "0xe1ff207f245d9579c331ab7e1f550a138cc4de45ea5acea7aec31d51739018e0",
+      "edge\/type": "execution-order",
+      "edge\/hash": "7e311eac6c1d08640e2ed2bf1104ea060c034c3a8bd28a41024c6109b8e9b220"
+    },
+    {
+      "edge\/from": "0xe1ff207f245d9579c331ab7e1f550a138cc4de45ea5acea7aec31d51739018e0",
+      "edge\/to": "0x29d7a85808c8a88c5070b7338454143fd9740703c5c98d24b02be9440d10143c",
+      "edge\/type": "execution-order",
+      "edge\/hash": "cbcb3611d904a730e78d8041f6cfd6389af9799dffc496734aaaa8778b2748c2"
+    },
+    {
+      "edge\/from": "0x29d7a85808c8a88c5070b7338454143fd9740703c5c98d24b02be9440d10143c",
+      "edge\/to": "0x165b3c7d51d82ed05ea5230f568c1dc1841e38ba572dca0f39ab01c6c1e3b3f6",
+      "edge\/type": "execution-order",
+      "edge\/hash": "dcc6ab32bc74a2b19cdadf00f0d162d3d9a02c684e37750afdb168b603846e13"
+    },
+    {
+      "edge\/from": "0x165b3c7d51d82ed05ea5230f568c1dc1841e38ba572dca0f39ab01c6c1e3b3f6",
+      "edge\/to": "0x178a06df08a62e8f5a13e720b6a30eb4c6dcb4fd98f9ca62b730934a4d59952e",
+      "edge\/type": "execution-order",
+      "edge\/hash": "dcae1eab18d99145d16103e24ee80dbb7228874f4d213e45502c7d63d34b009e"
+    },
+    {
+      "edge\/from": "0x178a06df08a62e8f5a13e720b6a30eb4c6dcb4fd98f9ca62b730934a4d59952e",
+      "edge\/to": "0x2d0c9146d31b6488015f94375c467f699fb38817fef2c8da1cec0367a4c4e243",
+      "edge\/type": "execution-order",
+      "edge\/hash": "0a442142f0a491f12040d4d4027bea18383f79fc614d29b378c3f19c60cf70f1"
+    },
+    {
+      "edge\/from": "0x2d0c9146d31b6488015f94375c467f699fb38817fef2c8da1cec0367a4c4e243",
+      "edge\/to": "0xdfa9e9faa5270061ab3686223bc7c7b75253ec32507f06ea8e00ee8a79752513",
+      "edge\/type": "execution-order",
+      "edge\/hash": "839b358ea2f9626b9e1de2ded05657cde70e26186127cdc7c9e625d003e5ffd1"
+    },
+    {
+      "edge\/from": "0xdfa9e9faa5270061ab3686223bc7c7b75253ec32507f06ea8e00ee8a79752513",
+      "edge\/to": "closure-accounting",
+      "edge\/type": "execution-order",
+      "edge\/hash": "55133f48526840040d67ce14a37b64c7b2c89814669c7ccf848b5ff8c11846b5"
+    },
+    {
+      "edge\/from": "closure-accounting",
+      "edge\/to": "rejected-replay-0",
+      "edge\/type": "observation",
+      "edge\/hash": "8aaeb8cd37144d3d01eb206755f398156c1d36617a5164bd30ce73e4779218b0"
+    },
+    {
+      "edge\/from": "closure-accounting",
+      "edge\/to": "rejected-replay-1",
+      "edge\/type": "observation",
+      "edge\/hash": "80dc9d6b8212cb04425f65d3c810df98217ad27063aa922edc40cb5e0f3584f4"
+    },
+    {
+      "edge\/from": "closure-accounting",
+      "edge\/to": "rejected-replay-2",
+      "edge\/type": "observation",
+      "edge\/hash": "3b08ab755dbf4197021537bfc91fe50f3d97ac49d1c6ca1adee0d0b2940fbb8f"
+    }
+  ],
+  "run\/id": "gate-e-20261010-current-00d90-withdrawal",
+  "dag\/nodes": [
+    {
+      "node\/id": "activation-evidence",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "sha256": "0x587684b9217ef26cd1800e40bf858b169f057efeff8da647501379562b2f74a5"
+      },
+      "node\/hash": "c41f0454bf31d2782dd6ea5df70a36fa938d77cd302ca565dada4bab167074d9"
+    },
+    {
+      "node\/id": "0x997ec308933d61b489bae2dd577e30b090ec643d10b3fa78db3ab49064a1fa6c",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "da87bd35adb9290f8c5f396ead170463356b862c53320046a4eb48a3f6eca517",
+      "node\/output-hashes": {
+        "trace-hash": "0x997ec308933d61b489bae2dd577e30b090ec643d10b3fa78db3ab49064a1fa6c",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xd97091cc97db9fb7d089974fea5d629c052fb488fb57b1b010250a642dd42f80"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.420228189Z"
+    },
+    {
+      "node\/id": "0xfce9eea45b19b5932d2a480f1f0e913d83edf86f95440475419b1fbe971cb822",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "d2eaf89e27aa195fe88f9d67c5d942301a054b8084f82584cee445b528fcc57a",
+      "node\/output-hashes": {
+        "trace-hash": "0xfce9eea45b19b5932d2a480f1f0e913d83edf86f95440475419b1fbe971cb822",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x555a03850d91d7a975fd2aa250909027e9290612ae4b631eb0f1e282d6936850"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.432821896Z"
+    },
+    {
+      "node\/id": "0xe6573f0ed9c9ccd67f4e72ad41b7e16d205b0c035304b3110387e78d04e2db19",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "dc295b1cae4dc304a52495bc2fe09c49f87557967633b038704ccfe0e2ccbe43",
+      "node\/output-hashes": {
+        "trace-hash": "0xe6573f0ed9c9ccd67f4e72ad41b7e16d205b0c035304b3110387e78d04e2db19",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x555a03850d91d7a975fd2aa250909027e9290612ae4b631eb0f1e282d6936850"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.437037759Z"
+    },
+    {
+      "node\/id": "0xe1ff207f245d9579c331ab7e1f550a138cc4de45ea5acea7aec31d51739018e0",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "c99b878ecd42b05aea23d4b93ef51f20d42ad2b14830d046e7ff1f10d6cf5275",
+      "node\/output-hashes": {
+        "trace-hash": "0xe1ff207f245d9579c331ab7e1f550a138cc4de45ea5acea7aec31d51739018e0",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x555a03850d91d7a975fd2aa250909027e9290612ae4b631eb0f1e282d6936850"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.441244525Z"
+    },
+    {
+      "node\/id": "0x29d7a85808c8a88c5070b7338454143fd9740703c5c98d24b02be9440d10143c",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "a7e4f6a80ea5c69437485264877587d04e496404c6ddf0a2c306cd9c9c74d948",
+      "node\/output-hashes": {
+        "trace-hash": "0x29d7a85808c8a88c5070b7338454143fd9740703c5c98d24b02be9440d10143c",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xfda6596479208c3ca2ab5230d81522ead15259257ef1910f1e583a300c1f2ad5"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.443550602Z"
+    },
+    {
+      "node\/id": "0x165b3c7d51d82ed05ea5230f568c1dc1841e38ba572dca0f39ab01c6c1e3b3f6",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "545721a891b0242a967980c4680d183ae66de8aeb93961bb3c5333cb285c137c",
+      "node\/output-hashes": {
+        "trace-hash": "0x165b3c7d51d82ed05ea5230f568c1dc1841e38ba572dca0f39ab01c6c1e3b3f6",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xfda6596479208c3ca2ab5230d81522ead15259257ef1910f1e583a300c1f2ad5"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.454462485Z"
+    },
+    {
+      "node\/id": "0x178a06df08a62e8f5a13e720b6a30eb4c6dcb4fd98f9ca62b730934a4d59952e",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "1260eb32b11fae1402fbf0b86b4b025b5a365a76dfd2bce58e58c9e417380ab7",
+      "node\/output-hashes": {
+        "trace-hash": "0x178a06df08a62e8f5a13e720b6a30eb4c6dcb4fd98f9ca62b730934a4d59952e",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xfda6596479208c3ca2ab5230d81522ead15259257ef1910f1e583a300c1f2ad5"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.463104349Z"
+    },
+    {
+      "node\/id": "0x2d0c9146d31b6488015f94375c467f699fb38817fef2c8da1cec0367a4c4e243",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "ac2b789a6576af9151463279d20f0f0b8bb435db3ccb46e13fd823d6401ce0a8",
+      "node\/output-hashes": {
+        "trace-hash": "0x2d0c9146d31b6488015f94375c467f699fb38817fef2c8da1cec0367a4c4e243",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xf4626e9656a0c79e1bb49487a4ef0e6ecafc9dbccbd5827a31f10f6b2f8962b8"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.467406225Z"
+    },
+    {
+      "node\/id": "0xdfa9e9faa5270061ab3686223bc7c7b75253ec32507f06ea8e00ee8a79752513",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "727e954f4bcc8c73a326396c43aaf6608aecb3da0e3bbae7ae54ffa1fab468b0",
+      "node\/output-hashes": {
+        "trace-hash": "0xdfa9e9faa5270061ab3686223bc7c7b75253ec32507f06ea8e00ee8a79752513",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xf4626e9656a0c79e1bb49487a4ef0e6ecafc9dbccbd5827a31f10f6b2f8962b8"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.472366507Z"
+    },
+    {
+      "node\/id": "closure-accounting",
+      "node\/type": "state-observation",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "e8467e40202a740fad969f9d4bda5a7249d516d9b7da22cc45bf33efbd958efb",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.475855604Z"
+    },
+    {
+      "node\/id": "rejected-replay-0",
+      "node\/type": "rejected-execution-attempt",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "76ff9b3ba63abde3660f864a4be23ff966eadd6aef346ad34f00f181b2fced01",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.478264436Z"
+    },
+    {
+      "node\/id": "rejected-replay-1",
+      "node\/type": "rejected-execution-attempt",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "66dae7c53f8bf7369f6d0ff40501faf0e44a710f50edd84c2dfa4426eb479e5a",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.479608521Z"
+    },
+    {
+      "node\/id": "rejected-replay-2",
+      "node\/type": "rejected-execution-attempt",
+      "node\/input-hashes": {
+        "evidence-record": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/hash": "855dc0833ff3139027af126701fe176bdec88b44a7b3d1f1c42241cc416552cd",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "fd68b5467aa08f334e86faee7bcbdf2a3697570e315bd7f7a7a43b7afd9481e9"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:06:33.495244529Z"
+    }
+  ],
+  "dag\/root-hash": "f1d858c3666bb0f457128ac20a934652941e3be03f1b252c09eb15eaa53bccd2",
+  "dag\/node-count": 14,
+  "execution\/id": "0x809b4fbdb632eba4671e5d5f35a37ff12aa4ae28e1ec84aece40972b1138755d",
+  "dag\/generated-at": "2026-10-10T15:06:33.559189645Z"
+}
