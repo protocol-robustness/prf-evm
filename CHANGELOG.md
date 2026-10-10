@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added read-only Gate E funding forensic capture with deployment/witness/proof file hashes, live transaction classification, receipts, and block-pinned accounting checks. Broadcast labels are treated as observations rather than transaction authority.
+
 - Added a local-only persistent Gate E funding script and operation-bound operator. The script checks real-proof deployment/witness provenance, binds the execution caller once, and submits admission, assurance, and exact reserve funding; activation and refund remain explicit subsequent operator calls.
 
 - Added execution-caller-authorized recovery for stale, unconsumed V1/V2 source assurances. Replacement requires a fresh admitted proof bound to the prepared operation and current full reserve commitment, and records generation-linked provenance; ratification freshness and funding checks are unchanged.

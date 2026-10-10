@@ -146,3 +146,31 @@ state `Ratified`, allocator state `Funded`, reserve custody 10, allocator
 custody 70, total reserved 0, and outstanding liability 0. Activation and
 withdrawal have not yet been submitted persistently for this operation.
 This is separate from the four successful fork integration tests.
+
+
+### Funding forensic capture
+
+Run `python3 scripts/capture-gate-e-entitlement-forensics.py` with
+`--manifest`, `--witness`, `--fixture`, `--broadcast`, `--output`, and optional
+`--rpc-url`. Capture requires the original local chain, successful receipts,
+matching deployment/program/witness identities, and historical state access.
+Existing output files are never overwritten. It performs read-only RPC calls.
+
+The retained example is in
+`evidence/gate-e-20261010-current-00d90/funding-forensic.json`, accompanied by
+an `execution-dag.json` constructed and validated using the core repository's
+existing `resolver-sim.forensic.execution-dag` functions. The DAG links manifest,
+witness, proof fixture, broadcast, actual transaction order, and accounting
+observation. Its hashes identify forensic records, not canonical PRF economic
+artifacts. Neither transaction/block metadata nor optional proof telemetry
+enters entitlement identities.
+
+The capture discovered mismatched function/hash associations in Forge's
+broadcast entries for this run. Actual RPC transaction calldata/destinations,
+receipt block hashes and transaction indices establish execution order. Both
+the original label and the actual classification are retained. Funding was
+executed at block 40: reserve balance 80 → 10, allocator balance 0 → 70,
+protected capital 10, total reserved 0, outstanding liability 0. These are
+block-level observations, not transaction-level state proofs; the record does
+not assert cryptographic authenticity of RPC responses or qualify activation,
+withdrawal, or closure.

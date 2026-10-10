@@ -1,0 +1,228 @@
+{
+  "dag\/schema-version": "execution-dag.v1",
+  "scenario\/id": "successor-proof-to-funding",
+  "dag\/edge-count": 10,
+  "dag\/edges": [
+    {
+      "edge\/from": "manifest",
+      "edge\/to": "witness",
+      "edge\/type": "dependency",
+      "edge\/hash": "8050bb412c79f3f05db10b93a7e33f3695eef6004abdfff878e45a5351ecfe5f"
+    },
+    {
+      "edge\/from": "witness",
+      "edge\/to": "fixture",
+      "edge\/type": "dependency",
+      "edge\/hash": "6e15b7316158f7f8172375b241d6c613b3148b0f71104fa8cb2d23a5211e7465"
+    },
+    {
+      "edge\/from": "fixture",
+      "edge\/to": "broadcast",
+      "edge\/type": "dependency",
+      "edge\/hash": "9f69e413a765b00d4d1d28af3574aed511f21ad0621c1cef6351a149ee73b1e8"
+    },
+    {
+      "edge\/from": "broadcast",
+      "edge\/to": "0x9dea27d141348179278420c30d6cee4f8932895233012543af04674dd0c3006c",
+      "edge\/type": "dependency",
+      "edge\/hash": "51f1decdc32a8631d64bed4bd3531c9591fe34afd084703a2f072b52170d5a01"
+    },
+    {
+      "edge\/from": "0x5acb0220a3c1adde09676088da1e5e633f5f470e5b890995aeac11435c3cdcdf",
+      "edge\/to": "funding-accounting",
+      "edge\/type": "dependency",
+      "edge\/hash": "11b402cab36c77b6d06dfbd915efb68697e6f83b42bcaa115cbf12d326f7dbce"
+    },
+    {
+      "edge\/from": "0x9dea27d141348179278420c30d6cee4f8932895233012543af04674dd0c3006c",
+      "edge\/to": "0xf91c814e527e1573681f8bad849a89c4446fb11ff9a761ba1b83b24fd4f56ee1",
+      "edge\/type": "execution-order",
+      "edge\/hash": "430e2d37c326c2bb770840325fc0fef72407e6310acea3fabe4f5c439af49af5"
+    },
+    {
+      "edge\/from": "0xf91c814e527e1573681f8bad849a89c4446fb11ff9a761ba1b83b24fd4f56ee1",
+      "edge\/to": "0x070175ddc3b3e083d4fa8cf392f628599031561e7dc7c8ea65b9e03e2afa62ea",
+      "edge\/type": "execution-order",
+      "edge\/hash": "24a919634c31174f825908cc12906d2172ec3ae9d77b8073294cc558b0e2f3d1"
+    },
+    {
+      "edge\/from": "0x070175ddc3b3e083d4fa8cf392f628599031561e7dc7c8ea65b9e03e2afa62ea",
+      "edge\/to": "0x0a41a174689546f4bab330d24f9dc47d7fe76fc50e4db887bc743e399d847a0d",
+      "edge\/type": "execution-order",
+      "edge\/hash": "94ad0e2772a394248b0dd21f088dc0ce1b3517d8e213756ce6e6cc3ad07435ff"
+    },
+    {
+      "edge\/from": "0x0a41a174689546f4bab330d24f9dc47d7fe76fc50e4db887bc743e399d847a0d",
+      "edge\/to": "0x7504576f400d38bf7c828e8ab067cb441df34ad3c02455a096938bf87b180bc8",
+      "edge\/type": "execution-order",
+      "edge\/hash": "7175c94956fd5bd2e01de9d3360ef52545929d53638a651a3cd6a620281a2177"
+    },
+    {
+      "edge\/from": "0x7504576f400d38bf7c828e8ab067cb441df34ad3c02455a096938bf87b180bc8",
+      "edge\/to": "0x5acb0220a3c1adde09676088da1e5e633f5f470e5b890995aeac11435c3cdcdf",
+      "edge\/type": "execution-order",
+      "edge\/hash": "49cc528cbd43e1778ebd0c4c5e5f9ff8c3fa76b131f51470e4723db77fcdf76c"
+    }
+  ],
+  "run\/id": "gate-e-20261010-current-00d90",
+  "dag\/nodes": [
+    {
+      "node\/id": "broadcast",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 27164,
+        "sha256": "0x4e00f30fd46c621b33e40b9f8a4348fb6c327a037a11a74d895d3696d8660358"
+      },
+      "node\/hash": "647aad78a892f058af03306d3bb486a9ae51c4f00aa786c3c4fe59ecc7e298f4"
+    },
+    {
+      "node\/id": "fixture",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 2620,
+        "sha256": "0x54129820a960a2edabe23167518a286baa43d2c7902ac9bd1b58884678c1cf67"
+      },
+      "node\/hash": "45bc73a9b2d49faaebd11942caed378161bb443edc53bf366120b066fc66c6ff"
+    },
+    {
+      "node\/id": "manifest",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 2609,
+        "sha256": "0xa550b4897d801e865120b67437776b89a4985f93ae716203ecaa1e1c46bba380"
+      },
+      "node\/hash": "411bd87e27ab2567af58a5add115de4bb0e788dceb0203a65746799f2af58959"
+    },
+    {
+      "node\/id": "witness",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 3674,
+        "sha256": "0x4783067b57e5a1e8f6b61d6533269fde8b8c89cf5302ac97648ce8a6769ddb63"
+      },
+      "node\/hash": "14a43bcda9ab7c6df9f7974195e2fc803d0aff78773d6a72e8c6e10df745efbd"
+    },
+    {
+      "node\/id": "0x9dea27d141348179278420c30d6cee4f8932895233012543af04674dd0c3006c",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "constructor"
+      },
+      "node\/hash": "c9f18425e2775c0703752e5cdf88ad62393e780258ce9afd3058d534f81df1e8",
+      "node\/output-hashes": {
+        "trace-hash": "0x9dea27d141348179278420c30d6cee4f8932895233012543af04674dd0c3006c",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x1aa9e456dda5789a2abec401613ed70630fb58aa1d13f49f7c6360182b370984"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.203039878Z"
+    },
+    {
+      "node\/id": "0xf91c814e527e1573681f8bad849a89c4446fb11ff9a761ba1b83b24fd4f56ee1",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "bindExecutionCaller(address)"
+      },
+      "node\/hash": "a9715b1a47b016c4d1d8afe59a53a0420f9e019c001e6fa91685448ab11c5cf9",
+      "node\/output-hashes": {
+        "trace-hash": "0xf91c814e527e1573681f8bad849a89c4446fb11ff9a761ba1b83b24fd4f56ee1",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xcee609a74f327ab38d9584db5202cd84ad35c6a387f6cdb41e8d11ff70d0f05f"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.206001933Z"
+    },
+    {
+      "node\/id": "0x070175ddc3b3e083d4fa8cf392f628599031561e7dc7c8ea65b9e03e2afa62ea",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "admitStatement(bytes32,bytes32,bytes,bytes)"
+      },
+      "node\/hash": "2ba0df9cd73a8b91541aeccdfb375aa1eaca4b29c28f000f7f34c7278a8a0b5b",
+      "node\/output-hashes": {
+        "trace-hash": "0x070175ddc3b3e083d4fa8cf392f628599031561e7dc7c8ea65b9e03e2afa62ea",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xcee609a74f327ab38d9584db5202cd84ad35c6a387f6cdb41e8d11ff70d0f05f"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.222806450Z"
+    },
+    {
+      "node\/id": "0x0a41a174689546f4bab330d24f9dc47d7fe76fc50e4db887bc743e399d847a0d",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "prepareSourceAssurance(bytes32,bytes32,bytes)"
+      },
+      "node\/hash": "80b61e8a8d72745394442b75f71e44e503b535e2558d9fdd384b8915be00a303",
+      "node\/output-hashes": {
+        "trace-hash": "0x0a41a174689546f4bab330d24f9dc47d7fe76fc50e4db887bc743e399d847a0d",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xcee609a74f327ab38d9584db5202cd84ad35c6a387f6cdb41e8d11ff70d0f05f"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.239959520Z"
+    },
+    {
+      "node\/id": "0x7504576f400d38bf7c828e8ab067cb441df34ad3c02455a096938bf87b180bc8",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "registerPrepared(bytes32)"
+      },
+      "node\/hash": "6c7dd6e906fb60f00fb2709ce15b409195dea19a8a13371d732edb5a9aab13f1",
+      "node\/output-hashes": {
+        "trace-hash": "0x7504576f400d38bf7c828e8ab067cb441df34ad3c02455a096938bf87b180bc8",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xe0865e8cd5fd3b9e6d92899c543a56c22183d2552825d61c51e8242faa97f70a"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.245540858Z"
+    },
+    {
+      "node\/id": "0x5acb0220a3c1adde09676088da1e5e633f5f470e5b890995aeac11435c3cdcdf",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8",
+        "function": "fund(bytes32,address)"
+      },
+      "node\/hash": "dd262708bc73c98dfaa0f02d659e45cf9d7f0a2205fe9fb40b8e35eb698dffb1",
+      "node\/output-hashes": {
+        "trace-hash": "0x5acb0220a3c1adde09676088da1e5e633f5f470e5b890995aeac11435c3cdcdf",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xe0865e8cd5fd3b9e6d92899c543a56c22183d2552825d61c51e8242faa97f70a"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.248186390Z"
+    },
+    {
+      "node\/id": "funding-accounting",
+      "node\/type": "state-observation",
+      "node\/input-hashes": {
+        "evidence-record": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8"
+      },
+      "node\/hash": "610511649f2528658cabb6d4a92bad843c0797474706d9d99079f407e6138548",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T14:55:44.250822435Z"
+    }
+  ],
+  "dag\/root-hash": "dd0d1c48048de1057af403411d4e0f80162b950cf6f05c16e9779688140d3a99",
+  "dag\/node-count": 11,
+  "execution\/id": "0x809b4fbdb632eba4671e5d5f35a37ff12aa4ae28e1ec84aece40972b1138755d",
+  "dag\/generated-at": "2026-10-10T14:55:44.288523052Z"
+}
