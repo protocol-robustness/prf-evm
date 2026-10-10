@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a fixture-specific local Gate E activation script that realizes the admitted vector-A commitment table and activates the existing funded operation through its bound operator, checking root/count/total, unchanged custody, and outstanding liability.
+
 - Added read-only Gate E funding forensic capture with deployment/witness/proof file hashes, live transaction classification, receipts, and block-pinned accounting checks. Broadcast labels are treated as observations rather than transaction authority.
 
 - Added a local-only persistent Gate E funding script and operation-bound operator. The script checks real-proof deployment/witness provenance, binds the execution caller once, and submits admission, assurance, and exact reserve funding; activation and refund remain explicit subsequent operator calls.

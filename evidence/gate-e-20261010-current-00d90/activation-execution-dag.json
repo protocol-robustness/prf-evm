@@ -1,0 +1,88 @@
+{
+  "dag\/schema-version": "execution-dag.v1",
+  "scenario\/id": "funding-to-activation",
+  "dag\/edge-count": 3,
+  "dag\/edges": [
+    {
+      "edge\/from": "funding-evidence",
+      "edge\/to": "0xd8f7e95bd49c881b8b1509917d0ae422bdc9ed624d142780b92e474bfe241d84",
+      "edge\/type": "execution-order",
+      "edge\/hash": "4043992e5ba38327b8b9f20eb865512ddcadfc43c21100ffeb1343b827c38304"
+    },
+    {
+      "edge\/from": "0xd8f7e95bd49c881b8b1509917d0ae422bdc9ed624d142780b92e474bfe241d84",
+      "edge\/to": "0x75eca777ddb8b17c370048ff31f25d89d941602f37b1d6fb1451827d8325ad3e",
+      "edge\/type": "execution-order",
+      "edge\/hash": "4d6436be0c2db4795f4f1d1bd072e1379f34079602b8725c9037e7fac44d40e6"
+    },
+    {
+      "edge\/from": "0x75eca777ddb8b17c370048ff31f25d89d941602f37b1d6fb1451827d8325ad3e",
+      "edge\/to": "activation-accounting",
+      "edge\/type": "execution-order",
+      "edge\/hash": "a836e433a9d41a5c381c081c1b474c66410c68eecf92fa840dbc034c6469e61c"
+    }
+  ],
+  "run\/id": "gate-e-20261010-current-00d90-activation",
+  "dag\/nodes": [
+    {
+      "node\/id": "funding-evidence",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "sha256": "0x0ea4677375311dcfe5cc97267425e1c5ecf0884750a37d577c6fc548ce3799d8"
+      },
+      "node\/hash": "3d46dfda6d76ffa29341b5a675586ce5ebd042a87fcc592136c983546f7f972c"
+    },
+    {
+      "node\/id": "0xd8f7e95bd49c881b8b1509917d0ae422bdc9ed624d142780b92e474bfe241d84",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "587684b9217ef26cd1800e40bf858b169f057efeff8da647501379562b2f74a5"
+      },
+      "node\/hash": "1c4fe88289cf35d458cc3c5e7e66d4a284a739913cb4cd788739c43f01406a58",
+      "node\/output-hashes": {
+        "trace-hash": "0xd8f7e95bd49c881b8b1509917d0ae422bdc9ed624d142780b92e474bfe241d84",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0xbf0aa6e21286db443ac04e5fb6ccce671a3de5c4bfcdae155a755cb002634adf"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:01:14.181144867Z"
+    },
+    {
+      "node\/id": "0x75eca777ddb8b17c370048ff31f25d89d941602f37b1d6fb1451827d8325ad3e",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "evidence-record": "587684b9217ef26cd1800e40bf858b169f057efeff8da647501379562b2f74a5"
+      },
+      "node\/hash": "4b1dc7db65fb527933957ea7cbdaf07135d5748479ddb033efebbf9d8678c74e",
+      "node\/output-hashes": {
+        "trace-hash": "0x75eca777ddb8b17c370048ff31f25d89d941602f37b1d6fb1451827d8325ad3e",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x7a2173613dee5f21e56cee3bc602d722ed7779b5bc9bedbae257d31baa0a8166"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:01:14.190451517Z"
+    },
+    {
+      "node\/id": "activation-accounting",
+      "node\/type": "state-observation",
+      "node\/input-hashes": {
+        "evidence-record": "587684b9217ef26cd1800e40bf858b169f057efeff8da647501379562b2f74a5"
+      },
+      "node\/hash": "b2575d112ee2eca3d88050d35b06613c6ba0c4fed16435f8f5c04685461e7f2e",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "587684b9217ef26cd1800e40bf858b169f057efeff8da647501379562b2f74a5"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T15:01:14.197608961Z"
+    }
+  ],
+  "dag\/root-hash": "575684d0e788cf9cb919643402584de069ce4889975850034e4ae8d51d08c126",
+  "dag\/node-count": 4,
+  "execution\/id": "0x809b4fbdb632eba4671e5d5f35a37ff12aa4ae28e1ec84aece40972b1138755d",
+  "dag\/generated-at": "2026-10-10T15:01:14.252324150Z"
+}

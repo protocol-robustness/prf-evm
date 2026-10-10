@@ -174,3 +174,32 @@ protected capital 10, total reserved 0, outstanding liability 0. These are
 block-level observations, not transaction-level state proofs; the record does
 not assert cryptographic authenticity of RPC responses or qualify activation,
 withdrawal, or closure.
+
+
+### Persistent local activation
+
+After funding, run
+`script/ActivateGateEEntitlementLocal.s.sol:ActivateGateEEntitlementLocal`
+with the same manifest/input/fixture/private-key environment and narrow
+Foundry read permissions used for persistent funding. Simulate with
+`forge script ... --rpc-url http://127.0.0.1:8545` before adding `--broadcast`.
+The operation must be `Funded` and its existing immutable operator must
+authorize the signer. This tool is explicitly restricted to the reviewed
+`A-minimum-realistic` fixture: three canonical claims allocated 35, 21, 14.
+It verifies claim-to-beneficiary/salt mappings and the full witness hash,
+then requires the resulting logical root/count/total to equal the admitted
+funded values. It is not a generic operational pro-rata witness generator.
+
+Representation deployment and activation are separate transactions. If
+activation fails, the funded operation remains refundable and the deployed
+representation is an unused immutable contract. Successful activation is the
+ordinary economic irreversibility cutpoint; refund is subsequently forbidden.
+
+The local operation was activated at block 42 on 2026-10-10 with representation
+`0xc96304e3c037f81da488ed9dea1d8f2a48278a75`. Its two physical shards realize
+the same admitted logical root, count 3, and total 70. Reserve custody remained
+10 and allocator custody 70; outstanding liability changed from 0 to 70.
+The stored allocation claim root remained unchanged. Public broadcast receipts,
+`activation-forensic.json`, and the companion activation DAG retain this
+transition and link it to the funding evidence. Withdrawals and closure remain
+subsequent persistent steps.
