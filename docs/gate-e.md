@@ -265,3 +265,32 @@ with zero liability. No proof bypass or fixture substitution is supported.
 
 Keep this separate deployment stable while proving. Proof, persistent funding,
 refund, and final refund forensic evidence remain outstanding for this run.
+
+
+### Persistent refund qualification completed
+
+The separate refund run above is now qualified with its actual deployment-derived
+Groth16 proof (356 on-chain bytes, SHA-256
+`0x7cae1892e420e18bb4c037c220cde2fb59661cfcaada7553bc1b2305ba62bc1d`).
+The deterministic converter checked manifest/witness/program provenance before
+submission. Admission, assurance and funding completed persistently at block 53,
+with reserve custody 10, allocator custody 70, and pre-activation liability zero.
+Cancel-and-refund completed at block 55: reserve custody returned to 80, allocator
+custody became zero, protected capital stayed 10, total reserved stayed zero,
+and outstanding liability remained zero. The ratification controller reached
+CancelledRefunded and the allocator reached terminal Cancelled. Historical
+prepared/allocation identities remained unchanged.
+
+Duplicate refund and activation attempts subsequently rejected at the controller's
+terminal-state check in read-only eth_call probes. Those failures are forensic
+attempt evidence, not mined transitions. The four deployment-derived real-proof
+Gate E tests also passed on a fork pinned to the original pre-funding block 50,
+including representation reconstruction, activation, refund, and governed
+withdrawal/closure. Fork checks do not mutate the persistent refund operation.
+
+`evidence/gate-e-20261010-refund-00d90/` retains the converted proof fixture,
+funding/refund broadcasts, block-pinned accounting captures, and a validated
+execution-dag.v1 linking the complete chain and rejected attempts. The original
+preparation record remains an immutable observation of the earlier proof-pending
+stage; this qualification supersedes its outstanding-gate status. The independently
+settled withdrawal operation is unchanged. No Base Sepolia transaction was submitted.

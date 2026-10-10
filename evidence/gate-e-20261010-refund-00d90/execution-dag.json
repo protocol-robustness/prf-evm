@@ -1,0 +1,295 @@
+{
+  "dag\/schema-version": "execution-dag.v1",
+  "scenario\/id": "real-proof-funded-cancel-and-refund",
+  "dag\/edge-count": 13,
+  "dag\/edges": [
+    {
+      "edge\/from": "manifest",
+      "edge\/to": "witness",
+      "edge\/type": "dependency",
+      "edge\/hash": "8050bb412c79f3f05db10b93a7e33f3695eef6004abdfff878e45a5351ecfe5f"
+    },
+    {
+      "edge\/from": "witness",
+      "edge\/to": "fixture",
+      "edge\/type": "dependency",
+      "edge\/hash": "6e15b7316158f7f8172375b241d6c613b3148b0f71104fa8cb2d23a5211e7465"
+    },
+    {
+      "edge\/from": "fixture",
+      "edge\/to": "broadcast",
+      "edge\/type": "dependency",
+      "edge\/hash": "9f69e413a765b00d4d1d28af3574aed511f21ad0621c1cef6351a149ee73b1e8"
+    },
+    {
+      "edge\/from": "broadcast",
+      "edge\/to": "0x7211ef8406ea01839be422af0d8fd77a615dfd85a8341aeb84598bbc32abc756",
+      "edge\/type": "dependency",
+      "edge\/hash": "f6ebc318f66ed4fe35beaaf861789b3b3332ca7e5ce2db036aae26352aec5e5e"
+    },
+    {
+      "edge\/from": "0x7211ef8406ea01839be422af0d8fd77a615dfd85a8341aeb84598bbc32abc756",
+      "edge\/to": "0x79ac82f5323f17bee9ef8cd0b18e22da85a472a24bf2f617cad0343a2a38f8f5",
+      "edge\/type": "execution-order",
+      "edge\/hash": "d010cf7c3858a7f2efad1d6fb16b8c79d3d8adb967030b000f12b37e28155210"
+    },
+    {
+      "edge\/from": "0x79ac82f5323f17bee9ef8cd0b18e22da85a472a24bf2f617cad0343a2a38f8f5",
+      "edge\/to": "0xd5ad731f66a3c0978e179e501113a53dd17a052fbee0e813c596d082fb331185",
+      "edge\/type": "execution-order",
+      "edge\/hash": "9b544eb975595c97023ede691ae2023d4bd287c05d533bf7021823ef495b9539"
+    },
+    {
+      "edge\/from": "0xd5ad731f66a3c0978e179e501113a53dd17a052fbee0e813c596d082fb331185",
+      "edge\/to": "0x965404165f31fd633e6e34dae81288bc5342b00d9d5f4be1113cf24f930a7297",
+      "edge\/type": "execution-order",
+      "edge\/hash": "21cd89ad6e67b38b3e3e1911f9a7a0572efb6cf25e52d6caecde417877b3e684"
+    },
+    {
+      "edge\/from": "0x965404165f31fd633e6e34dae81288bc5342b00d9d5f4be1113cf24f930a7297",
+      "edge\/to": "0x4fee8719e5b09922db6d752779e3a19cd988ef5aa982f9b7acee17af75301602",
+      "edge\/type": "execution-order",
+      "edge\/hash": "5914ef1a2a4eeefe795459bf80baf01082440425e6603f9ec95abfc29aebaaa8"
+    },
+    {
+      "edge\/from": "0x4fee8719e5b09922db6d752779e3a19cd988ef5aa982f9b7acee17af75301602",
+      "edge\/to": "0xb94db2ef0d970ee1b7e70088965f33a93cddac109d2282da828ce77a80561477",
+      "edge\/type": "execution-order",
+      "edge\/hash": "9de7f46f9a17e312bd8f462a2b18e517287fbb784cb15f4fa6fdac1e786abe25"
+    },
+    {
+      "edge\/from": "0xb94db2ef0d970ee1b7e70088965f33a93cddac109d2282da828ce77a80561477",
+      "edge\/to": "0xf747cccda32fcdd8da9eaa0a78ef66b12a6881f7e6a800ac48cb1ddb518c1d31",
+      "edge\/type": "execution-order",
+      "edge\/hash": "3b619d0b3ef9c3bcc0be6335e93b40ad9b239c114dd3f7cd4ea4d1737c125297"
+    },
+    {
+      "edge\/from": "0xf747cccda32fcdd8da9eaa0a78ef66b12a6881f7e6a800ac48cb1ddb518c1d31",
+      "edge\/to": "refund-accounting",
+      "edge\/type": "execution-order",
+      "edge\/hash": "11ec229e3165eebf740daef319ce3ed74a50c1eb4b258f56129e39feca5b4b8a"
+    },
+    {
+      "edge\/from": "refund-accounting",
+      "edge\/to": "duplicate-refund",
+      "edge\/type": "observation",
+      "edge\/hash": "6e3942e9d495a6d3389a204070bea911d37f10e02cbfc1d0973dd51705df873d"
+    },
+    {
+      "edge\/from": "refund-accounting",
+      "edge\/to": "activation-after-refund",
+      "edge\/type": "observation",
+      "edge\/hash": "4a6102626b6d94e16cb23fca68c2e721a1f32c6e4bd455c1554e6a4255cceb2f"
+    }
+  ],
+  "run\/id": "gate-e-20261010-refund-00d90",
+  "dag\/nodes": [
+    {
+      "node\/id": "broadcast",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 27167,
+        "sha256": "0xf617bc2d7524ed9ac98fc620ae7b1f212cf9e5f14518892fdf3a53dd2d8f5767"
+      },
+      "node\/hash": "1ce9554c5cd658d080e5ef59d918185e81be4f3edd3113e6e6073959242a07f1"
+    },
+    {
+      "node\/id": "fixture",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 2620,
+        "sha256": "0xfacff0ec9b2ce6336f3bc4bf7c6d16aa6a7cc4a3c3aa0f126ba88e05c34f8f78"
+      },
+      "node\/hash": "cd57f0ecaea2a0425d7b4d15fd40518592f464a2bdac6c1b40233875cb06c6b1"
+    },
+    {
+      "node\/id": "manifest",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 2609,
+        "sha256": "0x15ba14a5d2741355debe7c44e549127ba4cc0825e9e273eae3468bdfdf1bf311"
+      },
+      "node\/hash": "8f865c5dac5356986f6ce9bdb358edd1dc65e6e335191cbd30db2046ce1e5d3c"
+    },
+    {
+      "node\/id": "witness",
+      "node\/type": "input-artifact",
+      "node\/input-hashes": {
+        "bytes": 3674,
+        "sha256": "0x56231b11235ce13db5f01fc86f4e17ddcaf4196c1579c9a427e1a9b8223b85a1"
+      },
+      "node\/hash": "c40c680f5eb60efa76490796a392c78ced344b945991713b2bff8a3057a4a74d"
+    },
+    {
+      "node\/id": "0x7211ef8406ea01839be422af0d8fd77a615dfd85a8341aeb84598bbc32abc756",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "5526a8b67232ecce77fbd498659aba4e05fe6e545c946a1616f6d2c1aefe5b27",
+      "node\/output-hashes": {
+        "trace-hash": "0x7211ef8406ea01839be422af0d8fd77a615dfd85a8341aeb84598bbc32abc756",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x6792c2d4bb7e250151bed83ca7d4f0ce9b29ed8028892fbee52f92ccd5434b6d"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:51.984372267Z"
+    },
+    {
+      "node\/id": "0x79ac82f5323f17bee9ef8cd0b18e22da85a472a24bf2f617cad0343a2a38f8f5",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "365da4c9d59846352bab4a1b070d9b3b4deaaa2967a892bc90caad22b7614708",
+      "node\/output-hashes": {
+        "trace-hash": "0x79ac82f5323f17bee9ef8cd0b18e22da85a472a24bf2f617cad0343a2a38f8f5",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x32054e4e54cc65dcf0e072e072ec84f4eacf9f10bb52f09dc86947729c07f2d7"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.010031430Z"
+    },
+    {
+      "node\/id": "0xd5ad731f66a3c0978e179e501113a53dd17a052fbee0e813c596d082fb331185",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "378f7353be859859d50ae279a2006fdfc3a1c3314197e2dfe84242c95f895d7c",
+      "node\/output-hashes": {
+        "trace-hash": "0xd5ad731f66a3c0978e179e501113a53dd17a052fbee0e813c596d082fb331185",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x3db9d9191e578b67213c9791a84efc53447c087e2b19d138b80c9ce6fb68a549"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.033275990Z"
+    },
+    {
+      "node\/id": "0x965404165f31fd633e6e34dae81288bc5342b00d9d5f4be1113cf24f930a7297",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "b0f091e9663b8c2d9d279e89b98af5ec165c0da189048ca9d16af5e6147ee0f5",
+      "node\/output-hashes": {
+        "trace-hash": "0x965404165f31fd633e6e34dae81288bc5342b00d9d5f4be1113cf24f930a7297",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x3db9d9191e578b67213c9791a84efc53447c087e2b19d138b80c9ce6fb68a549"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.051222156Z"
+    },
+    {
+      "node\/id": "0x4fee8719e5b09922db6d752779e3a19cd988ef5aa982f9b7acee17af75301602",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "6e7ed6277ce5f3df0dd8b7804e0a6ce1871591f8ee93aa767036808e5b299134",
+      "node\/output-hashes": {
+        "trace-hash": "0x4fee8719e5b09922db6d752779e3a19cd988ef5aa982f9b7acee17af75301602",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x3db9d9191e578b67213c9791a84efc53447c087e2b19d138b80c9ce6fb68a549"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.079811418Z"
+    },
+    {
+      "node\/id": "0xb94db2ef0d970ee1b7e70088965f33a93cddac109d2282da828ce77a80561477",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "70ac7a943ad2a766a82e22d16820fa75fc664b3ae078478d7c9841ada956744e",
+      "node\/output-hashes": {
+        "trace-hash": "0xb94db2ef0d970ee1b7e70088965f33a93cddac109d2282da828ce77a80561477",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x3db9d9191e578b67213c9791a84efc53447c087e2b19d138b80c9ce6fb68a549"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.096897609Z"
+    },
+    {
+      "node\/id": "0xf747cccda32fcdd8da9eaa0a78ef66b12a6881f7e6a800ac48cb1ddb518c1d31",
+      "node\/type": "evm-transaction",
+      "node\/input-hashes": {
+        "funding-evidence": "6c2aa404351f3513e4e3fc629c7ea2f0299a9a2e91c6c027aa56c72056753864",
+        "refund-evidence": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "8cea8f3a3cee4f2e1fd4918035633e4a13b854c1f0637cd5d13dab27db79e731",
+      "node\/output-hashes": {
+        "trace-hash": "0xf747cccda32fcdd8da9eaa0a78ef66b12a6881f7e6a800ac48cb1ddb518c1d31",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "0x4b5a006e05df2e60a31208787fd4082af2ad71d2a42a973bdd6e19ed2f26814f"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.120949825Z"
+    },
+    {
+      "node\/id": "refund-accounting",
+      "node\/type": "state-observation",
+      "node\/input-hashes": {
+        "evidence-record": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "de10fc4eeefcdc6887bd14e6e89a5e08c998353aa2fe56cfdcec0e119daba3cd",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.127737339Z"
+    },
+    {
+      "node\/id": "duplicate-refund",
+      "node\/type": "rejected-execution-attempt",
+      "node\/input-hashes": {
+        "evidence-record": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "aaa3a36bff7729ed113cb64fe41c532d54a3c621e4712003884210cf71246c25",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.130080274Z"
+    },
+    {
+      "node\/id": "activation-after-refund",
+      "node\/type": "rejected-execution-attempt",
+      "node\/input-hashes": {
+        "evidence-record": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/hash": "2ea04e6f5b93ba7386c4f47c439f21d630b4ee782dcadc642d66960890225c49",
+      "node\/output-hashes": {
+        "trace-hash": "",
+        "world-final-hash": "",
+        "invariant-results-hash": "",
+        "evidence-hash": "4c7a088906d0c5168485983842cdca32fb5b6c4eea6987a59372c5ab39ef4eff"
+      },
+      "node\/status": "completed",
+      "node\/completed-at": "2026-10-10T16:06:52.135357197Z"
+    }
+  ],
+  "dag\/root-hash": "f18f94d501b6c081e7e48bd66149c1f27d41513270337c4dafaf5bdb1c945f24",
+  "dag\/node-count": 14,
+  "execution\/id": "0x0bd445ed4e0e28efcbf2bb0fee5fa69d8dd40712d99408fa910abecbe43cab35",
+  "dag\/generated-at": "2026-10-10T16:06:52.162595853Z"
+}
