@@ -580,3 +580,179 @@ contract SourceBoundProRataEntitlementRatificationControllerV1Test is Test {
         op.residualRecipient = RESIDUAL;
     }
 }
+
+/// @dev Test-only adapter consuming activation cases from the pinned lifecycle
+/// package. It checks the EVM implementation's shared amount/count activation
+/// contract; reserve timing and opaque typed-reference parsing remain outside
+/// this atomic EVM profile.
+contract CapitalLifecycleActivationVectorConsumerTest is Test {
+    bytes32 private constant RECEIPT = keccak256("capital-lifecycle-vector-receipt");
+    bytes32 private constant CLAIM = keccak256("capital-lifecycle-vector-claim");
+    address private constant RESIDUAL = address(0x4444);
+
+    function test_SharedVectorActivateMatchingBasis() public {
+        string memory vector = _vector("activate-matching-basis");
+        _assertVectorReferenceScope(vector);
+        _runActivationVector(vector);
+    }
+
+    function test_SharedVectorActivateTotalMismatch() public {
+        string memory vector = _vector("activate-basis-total-mismatch");
+        _assertVectorReferenceScope(vector);
+        _runActivationVector(vector);
+    }
+
+    function test_SharedVectorActivateAlternativeAdapter() public {
+        string memory vector = _vector("activate-alternative-adapter");
+        _assertVectorReferenceScope(vector);
+        _runActivationVector(vector);
+    }
+
+    function _vector(string memory wanted) private view returns (string memory) {
+        string[] memory lines = vm.split(
+            vm.readFile("lib/prf-capital-lifecycle/test-vectors/capital-lifecycle-transitions-v1.jsonl"), "\n"
+        );
+        for (uint256 i; i < lines.length; ++i) {
+            if (bytes(lines[i]).length == 0) continue;
+            if (keccak256(bytes(vm.parseJsonString(lines[i], ".id"))) == keccak256(bytes(wanted))) return lines[i];
+        }
+        revert("LIFECYCLE_VECTOR_NOT_FOUND");
+    }
+
+    function _assertVectorReferenceScope(string memory vector) private pure {
+        assertEq(vm.parseJsonString(vector, ".state.status"), "funded");
+        assertEq(vm.parseJsonString(vector, ".state.operation-id"), vm.parseJsonString(vector, ".command.operation-id"));
+        assertEq(
+            vm.parseJsonString(vector, ".state.asset-ref.fixture-ref"),
+            vm.parseJsonString(vector, ".command.basis.asset-ref.fixture-ref")
+        );
+        assertTrue(vm.parseJsonBool(vector, "$.command['admitted?']"));
+    }
+
+    function _runActivationVector(string memory vector) private {
+        uint256 fundedAmount = abi.decode(vm.parseJson(vector, ".state.funded-amount"), (uint256));
+        uint256 memberCount = abi.decode(vm.parseJson(vector, ".command.basis.member-count"), (uint256));
+        uint256 representationTotal = abi.decode(vm.parseJson(vector, ".command.basis.total"), (uint256));
+        bytes32 operationId = keccak256(bytes(vm.parseJsonString(vector, ".state.operation-id")));
+        bytes32 allocationRoot = keccak256(bytes(vm.parseJsonString(vector, ".id")));
+
+        EntitlementRatificationToken token = new EntitlementRatificationToken();
+        token.mint(address(this), fundedAmount);
+        ProductionProRataAllocatorV2 allocator =
+            new ProductionProRataAllocatorV2(address(this), new MockEntitlementProofModeSource());
+        OnchainShortfallReserveV2 reserve = new OnchainShortfallReserveV2(token, address(this), 0, allocator);
+        allocator.bindFundingAuthority(address(reserve));
+        SourceBoundProRataControllerV2 prepared = new SourceBoundProRataControllerV2();
+        EntitlementRatificationAdmissionMock admission = new EntitlementRatificationAdmissionMock();
+        PrfSourceBoundEntitlementVerifierAdapterV1 adapter = new PrfSourceBoundEntitlementVerifierAdapterV1(
+            new EntitlementRatificationVerifierMock(),
+            keccak256("capital-lifecycle-vector-vkey"),
+            keccak256("capital-lifecycle-vector-elf")
+        );
+
+        SourceBoundEntitlementV1Commitments.PreparedOperation memory preparedOperation;
+        preparedOperation.operationId = operationId;
+        preparedOperation.initiator = address(this);
+        preparedOperation.chainId = uint64(block.chainid);
+        preparedOperation.reserve = address(reserve);
+        preparedOperation.token = address(token);
+        preparedOperation.allocator = address(allocator);
+        preparedOperation.configurationRoot = keccak256("capital-lifecycle-vector-config");
+        preparedOperation.configurationEpoch = 1;
+        preparedOperation.sourceVerifierId = keccak256("capital-lifecycle-vector-verifier");
+        preparedOperation.executionVerifierId = keccak256("capital-lifecycle-vector-execution-verifier");
+        preparedOperation.sourceProgramVKey = adapter.programVKey();
+        preparedOperation.sourceProgramElfSha256 = adapter.programElfSha256();
+        preparedOperation.sourceStatementSchema = adapter.statementSchemaVersion();
+        preparedOperation.sourcePublicValuesSchema = adapter.publicValuesSchema();
+        preparedOperation.executionStatementSchema = keccak256("capital-lifecycle-vector-execution-statement");
+        preparedOperation.executionPublicValuesSchema = keccak256("capital-lifecycle-vector-execution-pv");
+        preparedOperation.policyRoot = keccak256("capital-lifecycle-vector-policy");
+        preparedOperation.beneficiaryProfile = SourceBoundEntitlementV1Commitments.BeneficiaryProfile.SmartAccountV1;
+        preparedOperation.residualRecipient = RESIDUAL;
+        bytes32 preparedRoot = prepared.prepareEntitlementOperation(preparedOperation);
+
+        token.approve(address(reserve), fundedAmount);
+        reserve.deposit(fundedAmount);
+        bytes32 reserveCommitment = reserve.economicState(preparedRoot).commitment;
+
+        bytes32[] memory commitments = new bytes32[](memberCount);
+        for (uint256 i; i < memberCount; ++i) commitments[i] = keccak256(abi.encode("vector-member", i));
+        PublicPackedEntitlementRepresentationV1 representation =
+            new PublicPackedEntitlementRepresentationV1(commitments, representationTotal);
+        bytes32 descriptorRoot = adapter.EXPECTED_DESCRIPTOR_ROOT();
+        bytes memory publicValues = abi.encode(
+            adapter.PUBLIC_VALUES_SCHEMA(),
+            preparedRoot,
+            reserveCommitment,
+            allocationRoot,
+            descriptorRoot,
+            representation.logicalRoot(),
+            memberCount,
+            fundedAmount,
+            CLAIM
+        );
+
+        IPrfStatementAdmission.AdmissionReceipt memory receipt;
+        receipt.exists = true;
+        receipt.configurationRoot = preparedOperation.configurationRoot;
+        receipt.configurationEpoch = uint64(preparedOperation.configurationEpoch);
+        receipt.verifierId = preparedOperation.sourceVerifierId;
+        receipt.verifierAdapter = address(adapter);
+        receipt.programVKey = adapter.programVKey();
+        receipt.programElfSha256 = adapter.programElfSha256();
+        receipt.statementSchemaVersionHash = adapter.statementSchemaVersion();
+        receipt.publicValuesSchema = adapter.publicValuesSchema();
+        receipt.statementRoot = allocationRoot;
+        receipt.publicValuesDigest = sha256(publicValues);
+        admission.setReceipt(RECEIPT, receipt);
+
+        SourceBoundProRataEntitlementAssuranceV1 assurance =
+            new SourceBoundProRataEntitlementAssuranceV1(admission, adapter, prepared, address(this));
+        SourceBoundProRataEntitlementRatificationControllerV1 ratification =
+            new SourceBoundProRataEntitlementRatificationControllerV1(prepared, assurance, reserve);
+        prepared.bindRatificationController(address(ratification));
+        reserve.bindRatificationAuthority(address(ratification));
+        assurance.bindRatificationController(address(ratification));
+        ratification.bindExecutionCaller(address(this));
+        assurance.prepareSourceAssurance(operationId, RECEIPT, publicValues);
+        ratification.registerPrepared(operationId);
+        ratification.ratifyAndFund(operationId, reserveCommitment, RESIDUAL);
+
+        bool accepted;
+        bytes4 revertSelector;
+        try ratification.activateEntitlement(operationId, representation) {
+            accepted = true;
+        } catch (bytes memory reason) {
+            if (reason.length >= 4) assembly ("memory-safe") {
+                revertSelector := mload(add(reason, 32))
+            }
+        }
+        bool expectedAccepted = vm.parseJsonBool(vector, "$.expected['accepted?']");
+        assertEq(accepted, expectedAccepted, "activation accepted parity");
+
+        IShortfallEntitlementAllocatorV1.EntitlementOperation memory operation =
+            allocator.entitlementOperation(operationId);
+        if (expectedAccepted) {
+            assertEq(uint8(operation.state), uint8(IShortfallAllocatorV2.State.Activated));
+            assertEq(
+                operation.entitlementCount,
+                abi.decode(vm.parseJson(vector, ".expected.state.entitlement-count"), (uint256))
+            );
+            assertEq(
+                operation.entitlementTotal,
+                abi.decode(vm.parseJson(vector, ".expected.state.liability-total"), (uint256))
+            );
+            assertEq(
+                allocator.outstandingLiability(operationId),
+                abi.decode(vm.parseJson(vector, ".expected.state.liability-remaining"), (uint256))
+            );
+        } else {
+            assertEq(vm.parseJsonString(vector, ".expected.reason"), "basis-total-mismatch");
+            assertEq(revertSelector, ProductionProRataAllocatorV2.EntitlementRepresentationMismatch.selector);
+            assertEq(uint8(operation.state), uint8(IShortfallAllocatorV2.State.Funded));
+            assertEq(operation.entitlementTotal, fundedAmount);
+            assertEq(allocator.outstandingLiability(operationId), 0);
+        }
+    }
+}
