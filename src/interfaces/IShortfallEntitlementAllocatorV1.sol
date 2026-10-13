@@ -38,9 +38,13 @@ interface IShortfallEntitlementAllocatorV1 {
         address residualRecipient
     ) external;
 
+    function bindFundingAuthority(address authority) external;
+    function fundingAuthority() external view returns (address);
+    function fundingAuthorityBound() external view returns (bool);
     function fundEntitlement(bytes32 operationId) external;
     function cancelAndRefundEntitlement(bytes32 operationId) external;
     function fundingSource(bytes32 operationId) external view returns (address);
+    function outstandingLiability(bytes32 operationId) external view returns (uint256);
     function activateEntitlement(bytes32 operationId, IEntitlementRepresentationV1 representation) external;
     function entitlementOperation(bytes32 operationId) external view returns (EntitlementOperation memory);
 }

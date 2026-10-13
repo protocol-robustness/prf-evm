@@ -38,8 +38,8 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
 
     address public immutable operationAuthority;
     IEntitlementProofModeSource public immutable proofModeSource;
-    address public fundingAuthority;
-    bool public fundingAuthorityBound;
+    address public override fundingAuthority;
+    bool public override fundingAuthorityBound;
     mapping(bytes32 => Operation) private _operations;
     mapping(bytes32 => IShortfallEntitlementAllocatorV1.EntitlementOperation) private _entitlementOperations;
     mapping(bytes32 => address) public override(IShortfallAllocatorV2, IShortfallEntitlementAllocatorV1) fundingSource;
@@ -48,7 +48,7 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
     mapping(bytes32 operationId => mapping(bytes32 claimIdentityHash => bool)) public consumedClaimIdentity;
     mapping(bytes32 operationId => uint256) public claimedAmount;
     mapping(bytes32 operationId => uint256) public claimedCount;
-    mapping(bytes32 operationId => uint256) public outstandingLiability;
+    mapping(bytes32 operationId => uint256) public override outstandingLiability;
 
     error OnlyOperationAuthority(address caller);
     error InvalidOperation();
@@ -99,7 +99,7 @@ contract ProductionProRataAllocatorV2 is IShortfallAllocatorV2, IShortfallEntitl
     }
 
     /// @notice Permanently binds the reserve/controller that may create and fund operations.
-    function bindFundingAuthority(address authority_) external {
+    function bindFundingAuthority(address authority_) external override {
         if (msg.sender != operationAuthority) revert OnlyOperationAuthority(msg.sender);
         if (fundingAuthorityBound) revert FundingAuthorityAlreadyBound();
         if (authority_ == address(0)) revert InvalidFundingAuthority();
