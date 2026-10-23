@@ -13,6 +13,16 @@ import {PrfChainInstanceGenesis} from "../src/core/PrfChainInstanceGenesis.sol";
 import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
 import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernanceAuthorityAdapter.sol";
 import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
+import {IPrfAuthorityTransitionAdmin} from "../src/interfaces/IPrfAuthorityTransitionAdmin.sol";
+import {IPrfAuthorityTransitionValidator} from "../src/interfaces/IPrfAuthorityTransitionValidator.sol";
+
+contract GovernorTransitionValidatorFixture is IPrfAuthorityTransitionValidator {
+    bytes32 public immutable override localAuthorityPolicyRoot;
+    constructor(bytes32 root_) { localAuthorityPolicyRoot = root_; }
+    function isValidTransition(bytes32 commitment, bytes calldata attestation) external view override returns (bool) {
+        return attestation.length == 32 && abi.decode(attestation, (bytes32)) == commitment;
+    }
+}
 
 contract GovernorModeVoteToken is ERC20, ERC20Permit, ERC20Votes {
     constructor() ERC20("Governance Vote", "GOV") ERC20Permit("Governance Vote") {}
@@ -122,6 +132,90 @@ contract GovGovernorEntitlementProofModeTest is Test {
         );
         assertEq(executor.currentEntitlementProofMode(), 1);
         assertEq(executor.currentConfigurationRoot(), CONFIG_ROOT_1);
+    }
+
+    function test_ValidatedAuthorityTransitionExecutesThroughGovernorAndBlocksLegacyRoute() public {
+        bytes32 initialStateRoot = keccak256("transition-initial-state");
+        bytes32 successorStateRoot = keccak256("transition-successor-state");
+        bytes32 policyRoot = keccak256("transition-policy");
+        bytes32 preimagesRoot = keccak256("transition-preimages");
+        SewGovernanceAuthorityAdapter transitionAuthority = new SewGovernanceAuthorityAdapter(
+            PROTOCOL_ROOT, address(governor), initialStateRoot
+        );
+        PrfChainInstanceGenesis transitionGenesis = new PrfChainInstanceGenesis(
+            PROTOCOL_ROOT, block.chainid, 1, address(transitionAuthority), initialStateRoot,
+            CONFIG_ROOT_0, address(this)
+        );
+        GovernorTransitionValidatorFixture transitionValidator =
+            new GovernorTransitionValidatorFixture(policyRoot);
+
+        _executeGovernanceCall(
+            abi.encodeCall(
+                governor.enablePrfAuthorityTransitions,
+                (address(transitionAuthority), transitionGenesis, policyRoot, transitionValidator)
+            ),
+            "enable PRF authority state transition validation"
+        );
+        assertTrue(transitionAuthority.authorityTransitionsEnabled());
+        transitionGenesis.sealGenesis(CHAIN_ROOT, address(transitionGenesis).codehash, address(transitionAuthority).codehash);
+
+        IPrfAuthorityTransitionAdmin.AuthorityMutation[] memory mutations =
+            new IPrfAuthorityTransitionAdmin.AuthorityMutation[](1);
+        mutations[0] = IPrfAuthorityTransitionAdmin.AuthorityMutation({
+            kind: 0,
+            decisionRoot: DECISION_ROOT,
+            targetMode: 0,
+            targetRoot: CHAIN_ROOT,
+            parentConfigurationRoot: CONFIG_ROOT_0,
+            newConfigurationRoot: CONFIG_ROOT_1,
+            parentVerifierRegistryRoot: initialRegistryRoot,
+            newVerifierRegistryRoot: nextRegistryRoot,
+            epoch: 1,
+            proofMode: 0
+        });
+        bytes32 mutationRoot = transitionAuthority.authorityMutationRoot(mutations);
+        bytes32 commitment = transitionAuthority.authorityTransitionExecutionCommitment(
+            address(transitionAuthority),
+            block.chainid,
+            CHAIN_ROOT,
+            initialStateRoot,
+            successorStateRoot,
+            policyRoot,
+            0,
+            1,
+            mutationRoot,
+            preimagesRoot
+        );
+        _executeGovernanceCall(
+            abi.encodeCall(
+                governor.applyPrfAuthorityStateTransition,
+                (address(transitionAuthority), initialStateRoot, successorStateRoot, uint64(0), uint64(1),
+                 preimagesRoot, mutations, abi.encode(commitment))
+            ),
+            "apply validated PRF authority state transition"
+        );
+        assertEq(transitionAuthority.authorityStateRoot(), successorStateRoot);
+        assertEq(transitionAuthority.authorityRevision(), 1);
+        assertTrue(transitionAuthority.isAuthorisedDecision(
+            DECISION_ROOT, 0, CHAIN_ROOT, CONFIG_ROOT_0, CONFIG_ROOT_1,
+            initialRegistryRoot, nextRegistryRoot, 1
+        ));
+    }
+
+    function _executeGovernanceCall(bytes memory callData, string memory description) private {
+        address[] memory targets = new address[](1);
+        targets[0] = address(governor);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = callData;
+        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        vm.roll(governor.proposalSnapshot(proposalId) + 1);
+        governor.castVote(proposalId, 1);
+        vm.roll(governor.proposalDeadline(proposalId) + 1);
+        assertEq(uint8(governor.state(proposalId)), uint8(IGovernor.ProposalState.Succeeded));
+        governor.queue(targets, values, calldatas, keccak256(bytes(description)));
+        vm.warp(block.timestamp + 1);
+        governor.execute(targets, values, calldatas, keccak256(bytes(description)));
     }
 
     function _emptyCanonicalRoot() private view returns (bytes32) {

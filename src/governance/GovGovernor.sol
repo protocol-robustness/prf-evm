@@ -12,6 +12,9 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 import {ISewGovernanceAuthority, ISewGovernanceAuthorityAdmin} from "../interfaces/ISewGovernanceAuthority.sol";
 import {ISewGovernanceProofModeAuthority} from "../interfaces/ISewGovernanceProofModeAuthority.sol";
+import {IPrfAuthorityTransitionAdmin} from "../interfaces/IPrfAuthorityTransitionAdmin.sol";
+import {IPrfAuthorityTransitionValidator} from "../interfaces/IPrfAuthorityTransitionValidator.sol";
+import {IPrfChainInstanceGenesis} from "../interfaces/IPrfChainInstanceGenesis.sol";
 
 /// @title GovGovernor
 /// @notice OpenZeppelin Governor + TimelockControl for SEW Protocol DAO, with a thin PRF authority bridge.
@@ -295,6 +298,45 @@ contract GovGovernor is Governor, GovernorSettings, GovernorCountingSimple, Gove
         _requireProtocolCompatibleAdapter(adapter);
         ISewGovernanceAuthorityAdmin(adapter).updateAuthorityStateRoot(newAuthorityStateRoot);
         emit PrfAuthorityStateRootUpdated(adapter, newAuthorityStateRoot);
+    }
+
+    /// @notice Permanently move an adapter onto its policy-pinned transition path.
+    /// @dev Must execute before genesis sealing; subsequent legacy mutation routes revert in the adapter.
+    function enablePrfAuthorityTransitions(
+        address adapter,
+        IPrfChainInstanceGenesis genesis,
+        bytes32 localAuthorityPolicyRoot,
+        IPrfAuthorityTransitionValidator validator
+    ) external onlyGovernance {
+        _requireProtocolCompatibleAdapter(adapter);
+        IPrfAuthorityTransitionAdmin(adapter).enableAuthorityTransitions(
+            genesis, localAuthorityPolicyRoot, validator
+        );
+    }
+
+    /// @notice Atomically apply the validated authority state and decision mutations.
+    /// @dev A single Governor action authenticates one complete successor state; the adapter rejects
+    ///      separate legacy decision/root updates once transition mode is enabled.
+    function applyPrfAuthorityStateTransition(
+        address adapter,
+        bytes32 expectedPreviousRoot,
+        bytes32 successorRoot,
+        uint64 previousRevision,
+        uint64 successorRevision,
+        bytes32 decisionPreimagesRoot,
+        IPrfAuthorityTransitionAdmin.AuthorityMutation[] calldata mutations,
+        bytes calldata attestation
+    ) external onlyGovernance returns (bytes32 executionCommitment) {
+        _requireProtocolCompatibleAdapter(adapter);
+        return IPrfAuthorityTransitionAdmin(adapter).applyAuthorityStateTransition(
+            expectedPreviousRoot,
+            successorRoot,
+            previousRevision,
+            successorRevision,
+            decisionPreimagesRoot,
+            mutations,
+            attestation
+        );
     }
 
     function _requireProtocolCompatibleAdapter(address adapter) private view {

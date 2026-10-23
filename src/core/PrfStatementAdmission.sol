@@ -51,6 +51,7 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
     error GenesisNotSealed();
     error WrongExecutionChain(uint256 expected, uint256 actual);
     error ConfigurationMismatch(bytes32 expected, bytes32 actual);
+    error ConfigurationInstanceMismatch(bytes32 expected, bytes32 actual);
     error EpochMismatch(uint64 expected, uint64 actual);
     error RegistryRootMismatch(bytes32 committed, bytes32 computed);
     error NotSealedRegistry(bytes32 registryRoot);
@@ -76,6 +77,10 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
 
         protocolGenesisRoot = genesis_.protocolGenesisRoot();
         chainInstanceGenesisRoot = genesis_.chainInstanceGenesisRoot();
+        bytes32 executorInstanceRoot = configurationExecutor_.chainInstanceGenesisRoot();
+        if (executorInstanceRoot != chainInstanceGenesisRoot) {
+            revert ConfigurationInstanceMismatch(chainInstanceGenesisRoot, executorInstanceRoot);
+        }
         genesis = genesis_;
         configurationExecutor = configurationExecutor_;
         verifierRegistry = verifierRegistry_;
@@ -155,6 +160,11 @@ contract PrfStatementAdmission is ERC165, IPrfStatementAdmission {
     }
 
     function _checkConfigurationBinding() private view {
+        bytes32 executorInstanceRoot = configurationExecutor.chainInstanceGenesisRoot();
+        if (executorInstanceRoot != chainInstanceGenesisRoot) {
+            revert ConfigurationInstanceMismatch(chainInstanceGenesisRoot, executorInstanceRoot);
+        }
+
         if (configurationExecutor.currentConfigurationRoot() != expectedConfigurationRoot)
             revert ConfigurationMismatch(
                 expectedConfigurationRoot,

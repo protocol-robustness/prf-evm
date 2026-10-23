@@ -7,6 +7,9 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ISewGovernanceAuthority, ISewGovernanceAuthorityAdmin} from "../../interfaces/ISewGovernanceAuthority.sol";
 import {ISewGovernanceProofModeAuthority} from "../../interfaces/ISewGovernanceProofModeAuthority.sol";
 import {IPrfAuthority} from "../../interfaces/IPrfAuthority.sol";
+import {IPrfAuthorityTransitionAdmin} from "../../interfaces/IPrfAuthorityTransitionAdmin.sol";
+import {IPrfAuthorityTransitionValidator} from "../../interfaces/IPrfAuthorityTransitionValidator.sol";
+import {IPrfChainInstanceGenesis} from "../../interfaces/IPrfChainInstanceGenesis.sol";
 
 /// @title SewGovernanceAuthorityAdapter
 /// @notice Thin PRF compatibility layer controlled by the SEW Governor contract.
@@ -20,16 +23,24 @@ import {IPrfAuthority} from "../../interfaces/IPrfAuthority.sol";
 /// The DecisionAuthorization struct now binds parent/new verifier-registry roots
 /// alongside the parent/new configuration roots, preventing a relayer from decoupling
 /// configuration root C from verifier-registry root R.
-contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceProofModeAuthority {
+contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceProofModeAuthority, IPrfAuthorityTransitionAdmin {
     uint8 public constant TARGET_DIRECT = 0;
     uint8 public constant TARGET_SET = 1;
 
     bytes4 private constant ERC1271_INVALID = 0xffffffff;
+    bytes32 private constant AUTHORITY_TRANSITION_DOMAIN = keccak256("PRF_AUTHORITY_STATE_TRANSITION_EXECUTION_V1");
 
     bytes32 public immutable override protocolGenesisRoot;
     address public immutable override governor;
 
     bytes32 public override authorityStateRoot;
+    uint64 public authorityRevision;
+    bytes32 public localAuthorityPolicyRoot;
+    IPrfAuthorityTransitionValidator public authorityTransitionValidator;
+    IPrfChainInstanceGenesis public authorityInstanceGenesis;
+    bool public authorityTransitionsEnabled;
+    bool public legacyAuthorityMutationOccurred;
+    bool private _applyingAuthorityTransition;
 
     mapping(bytes32 decisionRoot => DecisionAuthorization) private _authorizations;
     mapping(bytes32 decisionRoot => uint8) private _proofModes;
@@ -49,6 +60,16 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
     event DecisionRevoked(bytes32 indexed decisionRoot);
 
     event AuthorityStateRootUpdated(bytes32 indexed oldAuthorityStateRoot, bytes32 indexed newAuthorityStateRoot);
+    event AuthorityTransitionsEnabled(address indexed genesis, bytes32 indexed policyRoot, address indexed validator);
+    event AuthorityStateTransitionApplied(
+        bytes32 indexed executionCommitment,
+        bytes32 indexed previousRoot,
+        bytes32 indexed successorRoot,
+        uint64 previousRevision,
+        uint64 successorRevision,
+        bytes32 mutationRoot,
+        bytes32 decisionPreimagesRoot
+    );
 
     error ZeroRoot();
     error ZeroAddress();
@@ -59,9 +80,27 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
     error DecisionAlreadyRevoked(bytes32 decisionRoot);
     error EpochMustBePositive();
     error InvalidProofMode(uint8 proofMode);
+    error LegacyMutationDisabled();
+    error AuthorityTransitionAlreadyEnabled();
+    error InvalidAuthorityTransitionBinding();
+    error AuthorityTransitionInstanceNotSealed();
+    error AuthorityTransitionPredecessorMismatch(bytes32 expected, bytes32 actual);
+    error AuthorityTransitionRevisionMismatch(uint64 expected, uint64 actual);
+    error AuthorityTransitionPolicyMismatch(bytes32 expected, bytes32 actual);
+    error InvalidAuthorityTransitionAttestation();
+    error NonCanonicalAuthorityMutationOrder();
+    error InvalidAuthorityMutation(uint8 kind);
 
     modifier onlyGovernor() {
-        if (msg.sender != governor) revert OnlyGovernor(msg.sender, governor);
+        if (msg.sender != governor && !(msg.sender == address(this) && _applyingAuthorityTransition)) {
+            revert OnlyGovernor(msg.sender, governor);
+        }
+        _;
+    }
+
+    modifier legacyMutationAllowed() {
+        if (authorityTransitionsEnabled && !_applyingAuthorityTransition) revert LegacyMutationDisabled();
+        if (!authorityTransitionsEnabled && !_applyingAuthorityTransition) legacyAuthorityMutationOccurred = true;
         _;
     }
 
@@ -84,7 +123,7 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
         bytes32 parentVerifierRegistryRoot,
         bytes32 newVerifierRegistryRoot,
         uint64 epoch
-    ) external override onlyGovernor {
+    ) external override onlyGovernor legacyMutationAllowed {
         if (
             decisionRoot == bytes32(0) || targetRoot == bytes32(0) || parentConfigurationRoot == bytes32(0)
                 || newConfigurationRoot == bytes32(0) || parentVerifierRegistryRoot == bytes32(0)
@@ -121,7 +160,7 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
     }
 
     /// @inheritdoc ISewGovernanceProofModeAuthority
-    function authoriseDecisionProofMode(bytes32 decisionRoot, uint8 proofMode) external override onlyGovernor {
+    function authoriseDecisionProofMode(bytes32 decisionRoot, uint8 proofMode) external override onlyGovernor legacyMutationAllowed {
         if (proofMode > 1) revert InvalidProofMode(proofMode);
         if (!_authorizations[decisionRoot].exists || _authorizations[decisionRoot].revoked) {
             revert DecisionDoesNotExist(decisionRoot);
@@ -162,7 +201,7 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
     }
 
     /// @inheritdoc ISewGovernanceAuthorityAdmin
-    function revokeDecision(bytes32 decisionRoot) external override onlyGovernor {
+    function revokeDecision(bytes32 decisionRoot) external override onlyGovernor legacyMutationAllowed {
         DecisionAuthorization storage authorization = _authorizations[decisionRoot];
         if (!authorization.exists) revert DecisionDoesNotExist(decisionRoot);
         if (authorization.revoked) revert DecisionAlreadyRevoked(decisionRoot);
@@ -172,12 +211,178 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
     }
 
     /// @inheritdoc ISewGovernanceAuthorityAdmin
-    function updateAuthorityStateRoot(bytes32 newAuthorityStateRoot) external override onlyGovernor {
+    function updateAuthorityStateRoot(bytes32 newAuthorityStateRoot) external override onlyGovernor legacyMutationAllowed {
         if (newAuthorityStateRoot == bytes32(0)) revert ZeroRoot();
 
         bytes32 oldRoot = authorityStateRoot;
         authorityStateRoot = newAuthorityStateRoot;
         emit AuthorityStateRootUpdated(oldRoot, newAuthorityStateRoot);
+    }
+
+    /// @notice Irreversibly enable policy-pinned, validated authority transitions.
+    /// @dev Call before genesis sealing. It requires the adapter's exact initial
+    ///      root and identity to match the pending genesis, then disables every
+    ///      legacy standalone mutation route.
+    function enableAuthorityTransitions(
+        IPrfChainInstanceGenesis genesis_,
+        bytes32 localAuthorityPolicyRoot_,
+        IPrfAuthorityTransitionValidator validator_
+    ) external override onlyGovernor {
+        if (authorityTransitionsEnabled) revert AuthorityTransitionAlreadyEnabled();
+        if (
+            address(genesis_) == address(0) || address(validator_) == address(0)
+                || address(validator_).code.length == 0 || localAuthorityPolicyRoot_ == bytes32(0)
+                || genesis_.isSealedState() || legacyAuthorityMutationOccurred
+                || genesis_.authorityAdapter() != address(this)
+                || genesis_.protocolGenesisRoot() != protocolGenesisRoot
+                || genesis_.initialAuthorityStateRoot() != authorityStateRoot
+                || validator_.localAuthorityPolicyRoot() != localAuthorityPolicyRoot_
+        ) revert InvalidAuthorityTransitionBinding();
+
+        authorityInstanceGenesis = genesis_;
+        localAuthorityPolicyRoot = localAuthorityPolicyRoot_;
+        authorityTransitionValidator = validator_;
+        authorityTransitionsEnabled = true;
+        emit AuthorityTransitionsEnabled(address(genesis_), localAuthorityPolicyRoot_, address(validator_));
+    }
+
+    /// @notice Apply covered authority mutations and their successor root atomically.
+    /// @dev The policy-pinned validator authenticates canonical state semantics,
+    ///      capabilities and decision preimages. The adapter independently binds
+    ///      the exact EVM mutation payload, instance, roots, policy and revisions.
+    function applyAuthorityStateTransition(
+        bytes32 expectedPreviousRoot,
+        bytes32 successorRoot,
+        uint64 previousRevision,
+        uint64 successorRevision,
+        bytes32 decisionPreimagesRoot,
+        AuthorityMutation[] calldata mutations,
+        bytes calldata attestation
+    ) external override onlyGovernor returns (bytes32 executionCommitment) {
+        if (_applyingAuthorityTransition) revert InvalidAuthorityTransitionBinding();
+        if (!authorityTransitionsEnabled || !authorityInstanceGenesis.isSealedState()) {
+            revert AuthorityTransitionInstanceNotSealed();
+        }
+        if (expectedPreviousRoot != authorityStateRoot) {
+            revert AuthorityTransitionPredecessorMismatch(authorityStateRoot, expectedPreviousRoot);
+        }
+        if (successorRoot == bytes32(0) || decisionPreimagesRoot == bytes32(0)) revert ZeroRoot();
+        if (previousRevision != authorityRevision || successorRevision != previousRevision + 1) {
+            revert AuthorityTransitionRevisionMismatch(authorityRevision, previousRevision);
+        }
+        bytes32 currentPolicyRoot = authorityTransitionValidator.localAuthorityPolicyRoot();
+        if (currentPolicyRoot != localAuthorityPolicyRoot) {
+            revert AuthorityTransitionPolicyMismatch(localAuthorityPolicyRoot, currentPolicyRoot);
+        }
+
+        bytes32 mutationRoot = authorityMutationRoot(mutations);
+        executionCommitment = authorityTransitionExecutionCommitment(
+            address(this),
+            block.chainid,
+            authorityInstanceGenesis.chainInstanceGenesisRoot(),
+            expectedPreviousRoot,
+            successorRoot,
+            localAuthorityPolicyRoot,
+            previousRevision,
+            successorRevision,
+            mutationRoot,
+            decisionPreimagesRoot
+        );
+        if (!authorityTransitionValidator.isValidTransition(executionCommitment, attestation)) {
+            revert InvalidAuthorityTransitionAttestation();
+        }
+
+        _applyingAuthorityTransition = true;
+        for (uint256 i; i < mutations.length; ++i) {
+            AuthorityMutation calldata mutation = mutations[i];
+            if (i != 0) {
+                AuthorityMutation calldata previous = mutations[i - 1];
+                if (
+                    mutation.decisionRoot < previous.decisionRoot
+                        || (mutation.decisionRoot == previous.decisionRoot && mutation.kind <= previous.kind)
+                ) revert NonCanonicalAuthorityMutationOrder();
+            }
+            if (mutation.kind == 0) {
+                if (mutation.proofMode != 0) revert InvalidAuthorityMutation(mutation.kind);
+                this.authoriseDecision(
+                    mutation.decisionRoot,
+                    mutation.targetMode,
+                    mutation.targetRoot,
+                    mutation.parentConfigurationRoot,
+                    mutation.newConfigurationRoot,
+                    mutation.parentVerifierRegistryRoot,
+                    mutation.newVerifierRegistryRoot,
+                    mutation.epoch
+                );
+            } else if (mutation.kind == 1) {
+                if (!_isZeroAuthoriseFields(mutation) || mutation.targetMode != 0 || mutation.proofMode != 0) {
+                    revert InvalidAuthorityMutation(mutation.kind);
+                }
+                this.revokeDecision(mutation.decisionRoot);
+            } else if (mutation.kind == 2) {
+                if (!_isZeroAuthoriseFields(mutation) || mutation.targetMode != 0 || mutation.proofMode > 1) {
+                    revert InvalidAuthorityMutation(mutation.kind);
+                }
+                this.authoriseDecisionProofMode(mutation.decisionRoot, mutation.proofMode);
+            } else {
+                revert InvalidAuthorityMutation(mutation.kind);
+            }
+        }
+        _applyingAuthorityTransition = false;
+
+        bytes32 oldRoot = authorityStateRoot;
+        authorityStateRoot = successorRoot;
+        authorityRevision = successorRevision;
+        emit AuthorityStateRootUpdated(oldRoot, successorRoot);
+        emit AuthorityStateTransitionApplied(
+            executionCommitment,
+            expectedPreviousRoot,
+            successorRoot,
+            previousRevision,
+            successorRevision,
+            mutationRoot,
+            decisionPreimagesRoot
+        );
+    }
+
+    function authorityTransitionExecutionCommitment(
+        address adapter,
+        uint256 chainId,
+        bytes32 instanceRoot,
+        bytes32 expectedPreviousRoot,
+        bytes32 successorRoot,
+        bytes32 policyRoot,
+        uint64 previousRevision,
+        uint64 successorRevision,
+        bytes32 mutationRoot,
+        bytes32 decisionPreimagesRoot
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(
+            AUTHORITY_TRANSITION_DOMAIN,
+            chainId,
+            adapter,
+            instanceRoot,
+            expectedPreviousRoot,
+            successorRoot,
+            policyRoot,
+            previousRevision,
+            successorRevision,
+            mutationRoot,
+            decisionPreimagesRoot
+        ));
+    }
+
+    function authorityMutationRoot(AuthorityMutation[] calldata mutations) public pure returns (bytes32 root) {
+        root = keccak256("PRF_AUTHORITY_MUTATION_LIST_V1");
+        for (uint256 i; i < mutations.length; ++i) {
+            root = keccak256(abi.encode(root, keccak256(abi.encode(mutations[i]))));
+        }
+    }
+
+    function _isZeroAuthoriseFields(AuthorityMutation calldata mutation) private pure returns (bool) {
+        return mutation.targetRoot == bytes32(0) && mutation.parentConfigurationRoot == bytes32(0)
+            && mutation.newConfigurationRoot == bytes32(0) && mutation.parentVerifierRegistryRoot == bytes32(0)
+            && mutation.newVerifierRegistryRoot == bytes32(0) && mutation.epoch == 0;
     }
 
     /// @inheritdoc ISewGovernanceAuthority
@@ -252,6 +457,7 @@ contract SewGovernanceAuthorityAdapter is ERC165, IPrfAuthority, ISewGovernanceP
         return interfaceId == type(ISewGovernanceAuthority).interfaceId
             || interfaceId == type(ISewGovernanceAuthorityAdmin).interfaceId
             || interfaceId == type(ISewGovernanceProofModeAuthority).interfaceId
+            || interfaceId == type(IPrfAuthorityTransitionAdmin).interfaceId
             || interfaceId == type(IERC1271).interfaceId || super.supportsInterface(interfaceId);
     }
 }

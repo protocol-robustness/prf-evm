@@ -8,6 +8,7 @@ import {SewGovernanceAuthorityAdapter} from "../src/integrations/sew/SewGovernan
 import {SewConfigurationExecutor} from "../src/integrations/sew/SewConfigurationExecutor.sol";
 import {PrfVerifierRegistry} from "../src/core/PrfVerifierRegistry.sol";
 import {PrfEvidenceAnchor} from "../src/core/PrfEvidenceAnchor.sol";
+import {PrfConfigurationSnapshot} from "../src/core/PrfConfigurationSnapshot.sol";
 import {IPrfEvidenceAnchor} from "../src/interfaces/IPrfEvidenceAnchor.sol";
 
 contract PrfGenesisTest is Test {
@@ -105,6 +106,33 @@ contract PrfGenesisTest is Test {
         assertTrue(genesis.localProjectionHash() != bytes32(0));
     }
 
+    function testSealGenesis_RejectsAuthorityStateDriftAfterConstruction() public {
+        PrfChainInstanceGenesis pendingGenesis = new PrfChainInstanceGenesis(
+            PROTOCOL_ROOT,
+            block.chainid,
+            1,
+            address(authority),
+            AUTHORITY_STATE_ROOT,
+            CONFIG_ROOT_0,
+            address(this)
+        );
+        bytes32 changedAuthorityState = keccak256("authority-state-changed-before-seal");
+        authority.updateAuthorityStateRoot(changedAuthorityState);
+
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfChainInstanceGenesis.AuthorityStateMismatch.selector,
+            AUTHORITY_STATE_ROOT,
+            changedAuthorityState
+        ));
+        pendingGenesis.sealGenesis(
+            CHAIN_ROOT,
+            address(pendingGenesis).codehash,
+            address(authority).codehash
+        );
+        assertFalse(pendingGenesis.isSealedState());
+        assertEq(pendingGenesis.chainInstanceGenesisRoot(), bytes32(0));
+    }
+
     function testInitialExecutorState() public {
         assertEq(executor.currentConfigurationRoot(), CONFIG_ROOT_0);
         assertEq(executor.currentVerifierRegistryRoot(), VERIFIER_REGISTRY_ROOT_0);
@@ -114,6 +142,7 @@ contract PrfGenesisTest is Test {
     function testDirectConfigurationTransition() public {
         bytes32 decisionRoot = 0xe031d461072b6d47eb45e7cd0f15f0a65e717da62363d564c234d7f7e8713208;
         bytes32 configRoot1 = 0x5772ee58a15e9714c6fbf8d5851952e545dd05135276af001f70e5d1fd0bf661;
+        PrfConfigurationSnapshot historical = new PrfConfigurationSnapshot(genesis, executor);
 
         bytes32 registryRoot1 = _seedRegistryWithOneVerifier(keccak256("dummy-direct-transition"));
 
@@ -127,6 +156,8 @@ contract PrfGenesisTest is Test {
         assertEq(executor.currentVerifierRegistryRoot(), registryRoot1);
         assertEq(executor.currentEpoch(), 1);
         assertTrue(executor.consumedDecisionRoots(decisionRoot));
+        assertEq(historical.configurationRoot(), CONFIG_ROOT_0, "historical snapshot remains immutable");
+        assertEq(historical.configurationEpoch(), 0, "historical epoch remains immutable");
     }
 
     function testEntitlementProofModeIsLiveAndBoundToConfigurationDecision() public {

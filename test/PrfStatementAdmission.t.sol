@@ -168,6 +168,41 @@ contract PrfStatementAdmissionTest is Test {
         assertEq(admission.admittedCount(), 1);
     }
 
+    function test_Constructor_RejectsConfigurationExecutorFromAnotherInstance() public {
+        bytes32 otherInstance = keccak256("other-chain-instance");
+        vm.mockCall(
+            address(executor),
+            abi.encodeWithSelector(bytes4(keccak256("chainInstanceGenesisRoot()"))),
+            abi.encode(otherInstance)
+        );
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfStatementAdmission.ConfigurationInstanceMismatch.selector,
+            CHAIN_INSTANCE_ROOT,
+            otherInstance
+        ));
+        new PrfStatementAdmission(genesis, executor, registry, CONFIG_ROOT_0, 0);
+    }
+
+    function test_Admission_RechecksConfigurationExecutorInstanceBinding() public {
+        bytes32 otherInstance = keccak256("other-chain-instance");
+        vm.mockCall(
+            address(executor),
+            abi.encodeWithSelector(bytes4(keccak256("chainInstanceGenesisRoot()"))),
+            abi.encode(otherInstance)
+        );
+        vm.expectRevert(abi.encodeWithSelector(
+            PrfStatementAdmission.ConfigurationInstanceMismatch.selector,
+            CHAIN_INSTANCE_ROOT,
+            otherInstance
+        ));
+        admission.admitStatement(
+            REALIZED_ALLOC_VERIFIER_ID,
+            FIXTURE_STATEMENT_ROOT,
+            "",
+            FIXTURE_PUBLIC_VALUES
+        );
+    }
+
     function test_ExtractStatementRoot_RealFixture() public {
         bytes32 root = adapter.extractStatementRoot(FIXTURE_PUBLIC_VALUES);
         assertEq(root, FIXTURE_STATEMENT_ROOT);

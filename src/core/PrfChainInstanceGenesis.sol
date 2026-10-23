@@ -116,6 +116,11 @@ contract PrfChainInstanceGenesis is ERC165, IPrfChainInstanceGenesis {
         if (isSealedState) revert AlreadySealed();
         if (canonicalChainInstanceGenesisRoot == bytes32(0)) revert ZeroRoot();
 
+        bytes32 currentAuthorityStateRoot = IPrfAuthority(authorityAdapter).authorityStateRoot();
+        if (currentAuthorityStateRoot != initialAuthorityStateRoot) {
+            revert AuthorityStateMismatch(initialAuthorityStateRoot, currentAuthorityStateRoot);
+        }
+
         bytes32 actualGenesisCodeHash = address(this).codehash;
         bytes32 actualAuthorityCodeHash = authorityAdapter.codehash;
 
